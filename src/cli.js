@@ -22,6 +22,8 @@ async function main() {
       return mcp()
     case 'install-stealth':
       return installStealth()
+    case 'proxy':
+      return proxy()
     case 'version':
       console.log('spectrawl v0.1.0')
       return
@@ -116,6 +118,40 @@ async function mcp() {
   server.start()
 }
 
+async function proxy() {
+  const { ProxyServer } = require('./proxy')
+  const { loadConfig } = require('./config')
+  const config = loadConfig()
+
+  const port = getFlag('--port') || config.proxy?.localPort || 8080
+  const upstreams = config.proxy?.upstreams || []
+
+  if (upstreams.length === 0) {
+    console.log('No upstream proxies configured.')
+    console.log('Add them to spectrawl.json:')
+    console.log(JSON.stringify({
+      proxy: {
+        localPort: 8080,
+        strategy: 'round-robin',
+        upstreams: [
+          { url: 'http://user:pass@proxy1.example.com:8080' },
+          { url: 'http://user:pass@proxy2.example.com:8080' }
+        ]
+      }
+    }, null, 2))
+    return
+  }
+
+  const server = new ProxyServer({
+    port: parseInt(port),
+    upstreams,
+    strategy: config.proxy?.strategy || 'round-robin',
+    maxFailures: config.proxy?.maxFailures || 5
+  })
+
+  server.start()
+}
+
 async function installStealth() {
   const { install, isInstalled } = require('./browse/install-stealth')
   if (isInstalled()) {
@@ -138,6 +174,7 @@ Commands:
   serve [--port N]         Start HTTP server
   mcp                      Start MCP server (stdio)
   install-stealth          Download Camoufox anti-detect browser
+  proxy [--port N]         Start rotating proxy server
   version                  Show version
 
 Examples:

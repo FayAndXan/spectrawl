@@ -6,13 +6,20 @@
 const { XAdapter } = require('./adapters/x')
 const { RedditAdapter } = require('./adapters/reddit')
 const { DevtoAdapter } = require('./adapters/devto')
+const { HashnodeAdapter } = require('./adapters/hashnode')
+const { LinkedInAdapter } = require('./adapters/linkedin')
+const { IHAdapter } = require('./adapters/ih')
 
 const adapters = {
   x: new XAdapter(),
   twitter: new XAdapter(),
   reddit: new RedditAdapter(),
   devto: new DevtoAdapter(),
-  'dev.to': new DevtoAdapter()
+  'dev.to': new DevtoAdapter(),
+  hashnode: new HashnodeAdapter(),
+  linkedin: new LinkedInAdapter(),
+  ih: new IHAdapter(),
+  indiehackers: new IHAdapter()
 }
 
 class ActEngine {

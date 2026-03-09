@@ -2,6 +2,8 @@ const { ddgSearch } = require('./engines/ddg')
 const { braveSearch } = require('./engines/brave')
 const { serperSearch } = require('./engines/serper')
 const { searxngSearch } = require('./engines/searxng')
+const { googleCseSearch } = require('./engines/google-cse')
+const { jinaSearch } = require('./engines/jina')
 const { scrapeUrls } = require('./scraper')
 const { Summarizer } = require('./summarizer')
 
@@ -9,7 +11,9 @@ const ENGINES = {
   searxng: searxngSearch,
   ddg: ddgSearch,
   brave: braveSearch,
-  serper: serperSearch
+  serper: serperSearch,
+  'google-cse': googleCseSearch,
+  jina: jinaSearch
 }
 
 class SearchEngine {

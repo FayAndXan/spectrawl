@@ -42,7 +42,7 @@ const TOOLS = [
     inputSchema: {
       type: 'object',
       properties: {
-        platform: { type: 'string', description: 'Platform name (x, reddit, devto)', enum: ['x', 'reddit', 'devto'] },
+        platform: { type: 'string', description: 'Platform name', enum: ['x', 'reddit', 'devto', 'hashnode', 'linkedin', 'ih'] },
         action: { type: 'string', description: 'Action to perform (post, comment, like, delete)' },
         account: { type: 'string', description: 'Account handle (e.g. @myhandle)' },
         text: { type: 'string', description: 'Text content for post/comment' },

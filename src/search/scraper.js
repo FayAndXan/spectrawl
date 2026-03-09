@@ -1,21 +1,24 @@
 const https = require('https')
 const http = require('http')
 const { URL } = require('url')
+const { jinaExtract } = require('./engines/jina')
 
 /**
  * Scrape URLs for full content.
- * Strategy: fetch + readability parse first (90% of pages).
- * Falls back to browser for JS-heavy/blocked pages.
+ * Dual engine approach (like tavily-open):
+ *   1. Jina Reader (fast, AI-optimized markdown) — if available
+ *   2. Readability (built-in, no deps) — fallback
+ *   3. Browser (Camoufox/Playwright) — for JS-heavy/blocked pages
  */
 async function scrapeUrls(urls, opts = {}) {
   const results = {}
   const timeout = opts.timeout || 10000
   const concurrent = opts.concurrent || 3
+  const engine = opts.engine || 'auto' // 'jina', 'readability', 'auto'
 
-  // Process in batches
   for (let i = 0; i < urls.length; i += concurrent) {
     const batch = urls.slice(i, i + concurrent)
-    const promises = batch.map(url => scrapeUrl(url, timeout).catch(() => null))
+    const promises = batch.map(url => scrapeUrl(url, { timeout, engine }).catch(() => null))
     const batchResults = await Promise.all(promises)
     
     batch.forEach((url, idx) => {
@@ -28,9 +31,24 @@ async function scrapeUrls(urls, opts = {}) {
   return results
 }
 
-async function scrapeUrl(url, timeout = 10000) {
+async function scrapeUrl(url, opts = {}) {
+  const { timeout = 10000, engine = 'auto' } = opts
+
+  // Try Jina first if available (better markdown output)
+  if (engine === 'jina' || engine === 'auto') {
+    try {
+      const result = await jinaExtract(url)
+      if (result.content && result.content.length > 100) {
+        return result.content
+      }
+    } catch (e) {
+      // Fall through to readability
+    }
+  }
+
+  // Readability fallback
   const html = await fetchPage(url, timeout)
-  return extractReadableContent(html)
+  return extractMarkdown(html)
 }
 
 function fetchPage(url, timeout = 10000, redirects = 3) {
@@ -53,7 +71,6 @@ function fetchPage(url, timeout = 10000, redirects = 3) {
     }
 
     const req = client.request(opts, (res) => {
-      // Follow redirects
       if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
         const redirectUrl = new URL(res.headers.location, url).toString()
         return fetchPage(redirectUrl, timeout, redirects - 1).then(resolve).catch(reject)
@@ -75,11 +92,11 @@ function fetchPage(url, timeout = 10000, redirects = 3) {
 }
 
 /**
- * Basic readability extraction.
- * Strips scripts, styles, nav, footer, ads. Extracts main content as text.
+ * Extract content as clean markdown (improved over basic readability).
+ * Handles: headings, lists, code blocks, tables, links, bold/italic.
  */
-function extractReadableContent(html) {
-  // Remove scripts, styles, comments
+function extractMarkdown(html) {
+  // Remove noise
   let content = html
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/<style[\s\S]*?<\/style>/gi, '')
@@ -87,38 +104,67 @@ function extractReadableContent(html) {
     .replace(/<nav[\s\S]*?<\/nav>/gi, '')
     .replace(/<footer[\s\S]*?<\/footer>/gi, '')
     .replace(/<header[\s\S]*?<\/header>/gi, '')
+    .replace(/<aside[\s\S]*?<\/aside>/gi, '')
+    .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
+    .replace(/<svg[\s\S]*?<\/svg>/gi, '')
 
   // Try to find main content
   const mainMatch = content.match(/<main[\s\S]*?<\/main>/i) ||
                     content.match(/<article[\s\S]*?<\/article>/i) ||
                     content.match(/<div[^>]*(?:content|article|post|entry|main)[^>]*>[\s\S]*?<\/div>/i)
 
-  if (mainMatch) {
-    content = mainMatch[0]
-  }
+  if (mainMatch) content = mainMatch[0]
 
-  // Convert to text
+  // Convert to markdown
   content = content
+    // Headings
+    .replace(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, '\n# $1\n')
+    .replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, '\n## $1\n')
+    .replace(/<h3[^>]*>([\s\S]*?)<\/h3>/gi, '\n### $1\n')
+    .replace(/<h4[^>]*>([\s\S]*?)<\/h4>/gi, '\n#### $1\n')
+    .replace(/<h5[^>]*>([\s\S]*?)<\/h5>/gi, '\n##### $1\n')
+    .replace(/<h6[^>]*>([\s\S]*?)<\/h6>/gi, '\n###### $1\n')
+    // Bold/italic
+    .replace(/<(?:strong|b)>([\s\S]*?)<\/(?:strong|b)>/gi, '**$1**')
+    .replace(/<(?:em|i)>([\s\S]*?)<\/(?:em|i)>/gi, '*$1*')
+    // Links
+    .replace(/<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, '[$2]($1)')
+    // Code blocks
+    .replace(/<pre[^>]*><code[^>]*>([\s\S]*?)<\/code><\/pre>/gi, '\n```\n$1\n```\n')
+    .replace(/<code>([\s\S]*?)<\/code>/gi, '`$1`')
+    // Lists
+    .replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, '- $1\n')
+    .replace(/<\/?[ou]l[^>]*>/gi, '\n')
+    // Table (basic)
+    .replace(/<tr[^>]*>([\s\S]*?)<\/tr>/gi, '|$1|\n')
+    .replace(/<t[hd][^>]*>([\s\S]*?)<\/t[hd]>/gi, ' $1 |')
+    // Paragraphs/breaks
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>/gi, '\n\n')
-    .replace(/<\/h[1-6]>/gi, '\n\n')
-    .replace(/<\/li>/gi, '\n')
+    .replace(/<p[^>]*>/gi, '')
+    // Strip remaining tags
     .replace(/<[^>]+>/g, '')
+    // Decode entities
     .replace(/&nbsp;/g, ' ')
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&mdash;/g, '—')
+    .replace(/&ndash;/g, '–')
+    // Clean whitespace
     .replace(/\n{3,}/g, '\n\n')
     .replace(/[ \t]+/g, ' ')
+    .replace(/^ +/gm, '')
     .trim()
 
-  // Truncate to reasonable length
-  if (content.length > 10000) {
-    content = content.slice(0, 10000) + '...'
+  // Truncate
+  if (content.length > 15000) {
+    content = content.slice(0, 15000) + '\n\n...(truncated)'
   }
 
   return content
 }
 
-module.exports = { scrapeUrls, scrapeUrl, extractReadableContent }
+module.exports = { scrapeUrls, scrapeUrl, extractMarkdown }

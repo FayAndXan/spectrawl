@@ -37,19 +37,34 @@ async function geminiGroundedSearch(query, config = {}) {
   const chunks = grounding?.groundingChunks || []
   const answer = candidate?.content?.parts?.map(p => p.text).filter(Boolean).join('\n') || ''
 
-  // Convert grounding chunks to standard search result format
-  const results = chunks.map((chunk, i) => ({
+  // Resolve redirect URLs to actual URLs (parallel, with timeout)
+  const rawResults = chunks.map((chunk, i) => ({
     title: chunk.web?.title || `Result ${i + 1}`,
-    url: chunk.web?.uri || '',
-    snippet: '', // Gemini doesn't give per-result snippets
+    redirectUrl: chunk.web?.uri || '',
+    snippet: '',
     source: 'gemini-grounded'
-  })).filter(r => r.url)
+  })).filter(r => r.redirectUrl)
 
-  // Also try to extract URLs from grounding support
+  // Follow redirects to get real URLs
+  const resolved = await Promise.all(
+    rawResults.map(r => resolveRedirect(r.redirectUrl).catch(() => r.redirectUrl))
+  )
+
+  const results = rawResults.map((r, i) => ({
+    ...r,
+    url: resolved[i] || r.redirectUrl
+  }))
+
+  // Add confidence scores from grounding supports
   const supports = grounding?.groundingSupports || []
   for (const support of supports) {
     const indices = support.groundingChunkIndices || []
-    // Already captured above
+    const scores = support.confidenceScores || []
+    indices.forEach((idx, j) => {
+      if (results[idx] && scores[j]) {
+        results[idx].confidence = Math.max(results[idx].confidence || 0, scores[j])
+      }
+    })
   }
 
   // Attach the AI answer as metadata
@@ -58,6 +73,31 @@ async function geminiGroundedSearch(query, config = {}) {
   }
 
   return results
+}
+
+/**
+ * Follow a redirect URL to get the actual destination.
+ */
+function resolveRedirect(url) {
+  return new Promise((resolve, reject) => {
+    const urlObj = new URL(url)
+    const client = urlObj.protocol === 'https:' ? https : require('http')
+    const req = client.request({
+      hostname: urlObj.hostname,
+      path: urlObj.pathname + urlObj.search,
+      method: 'HEAD',
+      headers: { 'User-Agent': 'Spectrawl/0.3' }
+    }, res => {
+      if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
+        resolve(res.headers.location)
+      } else {
+        resolve(url)
+      }
+    })
+    req.on('error', () => resolve(url))
+    req.setTimeout(3000, () => { req.destroy(); resolve(url) })
+    req.end()
+  })
 }
 
 function post(url, body) {

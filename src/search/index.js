@@ -108,7 +108,7 @@ class SearchEngine {
     }
 
     // Check cache
-    const cacheKey = `deep:${query}:${JSON.stringify(opts)}`
+    const cacheKey = `deep:${opts.mode || 'full'}:${query}`
     const cached = this.cache?.get('search', cacheKey)
     if (cached) return { ...cached, cached: true }
 
@@ -119,31 +119,38 @@ class SearchEngine {
       queries = await this.expander.expand(query)
     }
 
-    // Step 2: Search across all query variants (with stagger to avoid rate limits)
+    // Step 2: Search across all query variants
+    // When using Gemini Grounded, also run DDG in parallel for volume
     const resultSets = []
-    for (const q of queries) {
-      try {
-        const r = await this._rawSearch(q, opts)
-        resultSets.push(r)
-      } catch (e) {
-        resultSets.push([])
+    if (usesGrounded) {
+      // Parallel: Gemini for quality + DDG for volume
+      const [groundedResults, ddgResults] = await Promise.all([
+        this._rawSearch(query, { ...opts, engines: ['gemini-grounded', 'gemini'] }).catch(() => []),
+        this._rawSearch(query, { ...opts, engines: ['ddg'] }).catch(() => [])
+      ])
+      resultSets.push(groundedResults, ddgResults)
+    } else {
+      for (const q of queries) {
+        try {
+          const r = await this._rawSearch(q, opts)
+          resultSets.push(r)
+        } catch (e) {
+          resultSets.push([])
+        }
+        if (queries.length > 1) await new Promise(r => setTimeout(r, 300))
       }
-      // Small delay between queries to avoid rate limiting
-      if (queries.length > 1) await new Promise(r => setTimeout(r, 300))
     }
 
     // Step 3: Merge and deduplicate
-    let results = this.expander
-      ? this.expander.mergeResults(resultSets)
-      : dedupeResults(resultSets.flat())
+    let results = dedupeResults(resultSets.flat())
 
     // Step 4: Rerank by relevance
     if (this.reranker && opts.rerank !== false) {
       results = await this.reranker.rerank(query, results)
     }
 
-    // Step 5: Parallel scrape top N for full content
-    const scrapeCount = opts.scrapeTop ?? this.scrapeTop ?? 5
+    // Step 5: Parallel scrape top N for full content (skip in fast mode)
+    const scrapeCount = opts.mode === 'fast' ? 0 : (opts.scrapeTop ?? this.scrapeTop ?? 5)
     if (scrapeCount > 0 && results.length > 0) {
       const urls = results.slice(0, scrapeCount).map(r => r.url)
       const scraped = await scrapeUrls(urls)
@@ -192,8 +199,9 @@ class SearchEngine {
   async _rawSearch(query, opts = {}) {
     let results = []
     const minResults = opts.minResults || 5
+    const cascade = opts.engines || this.cascade
 
-    for (const engineName of this.cascade) {
+    for (const engineName of cascade) {
       const engine = ENGINES[engineName]
       if (!engine) continue
 

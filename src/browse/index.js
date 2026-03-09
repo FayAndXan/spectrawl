@@ -1,6 +1,10 @@
 /**
- * Browse engine — stealth web browsing with escalation.
- * Playwright (fast) → Camoufox (stealth) when blocked.
+ * Browse engine — stealth web browsing built in.
+ * 
+ * Default: playwright-extra + stealth plugin (npm install, works everywhere)
+ * Optional: Camoufox HTTP client (deeper anti-detect, requires external service)
+ * 
+ * Escalation: stealth playwright → Camoufox (if configured) → error with context
  */
 
 const { CamoufoxClient } = require('./camoufox')
@@ -10,44 +14,48 @@ class BrowseEngine {
     this.config = config
     this.cache = cache
     this.browser = null
-    this.camoufox = new CamoufoxClient(config.camoufox || {})
-    this._camoufoxAvailable = null // cached check
+    this.camoufox = config.camoufox?.url ? new CamoufoxClient(config.camoufox) : null
+    this._camoufoxAvailable = null
   }
 
   /**
    * Browse a URL and extract content.
-   * @param {string} url
-   * @param {object} opts - { auth, screenshot, extract, stealth, html, _cookies }
+   * Stealth is ALWAYS on — no "stealth: true" flag needed.
    */
   async browse(url, opts = {}) {
-    // Check cache
     if (!opts.noCache && !opts.screenshot) {
       const cached = this.cache?.get('scrape', url)
       if (cached) return { ...cached, cached: true }
     }
 
-    // If stealth requested or Playwright fails, use Camoufox
-    if (opts.stealth) {
+    // Force Camoufox if explicitly requested and available
+    if (opts.camoufox && this.camoufox) {
       return this._browseCamoufox(url, opts)
     }
 
-    // Default: try Playwright first
+    // Default: stealth Playwright
     try {
-      return await this._browsePlaywright(url, opts)
+      return await this._browseStealthPlaywright(url, opts)
     } catch (err) {
-      // If blocked/detected, escalate to Camoufox
-      if (this._isBlocked(err)) {
-        console.log(`Playwright blocked on ${url}, escalating to Camoufox`)
+      // If blocked, try Camoufox as fallback
+      if (this._isBlocked(err) && this.camoufox) {
+        console.log(`Stealth Playwright blocked on ${url}, escalating to Camoufox`)
         return this._browseCamoufox(url, opts)
+      }
+
+      // No Camoufox fallback — return error with context
+      if (this._isBlocked(err)) {
+        err.message = `Blocked on ${url}: ${err.message}. For deeper stealth, configure camoufox.url in spectrawl.json`
       }
       throw err
     }
   }
 
   /**
-   * Browse with Playwright (fast, default).
+   * Stealth Playwright — default browse engine.
+   * Uses playwright-extra + stealth plugin for anti-detection.
    */
-  async _browsePlaywright(url, opts) {
+  async _browseStealthPlaywright(url, opts) {
     const browser = await this._getBrowser()
     const context = await this._createContext(browser, opts)
     const page = await context.newPage()
@@ -57,11 +65,19 @@ class BrowseEngine {
         await context.addCookies(opts._cookies)
       }
 
-      if (this.config.humanlike?.scrollBehavior) {
-        await this._humanlikeNav(page, url)
-      } else {
-        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 })
-      }
+      // Human-like navigation
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 })
+      
+      // Random delay (humans don't instant-scrape)
+      const delay = 800 + Math.random() * 1500
+      await page.waitForTimeout(delay)
+
+      // Random scroll (triggers lazy-loaded content + looks human)
+      await page.evaluate(() => {
+        const distance = Math.floor(Math.random() * 400) + 100
+        window.scrollBy({ top: distance, behavior: 'smooth' })
+      })
+      await page.waitForTimeout(300 + Math.random() * 700)
 
       const result = {}
 
@@ -77,7 +93,7 @@ class BrowseEngine {
       }
 
       if (opts.screenshot) {
-        result.screenshot = await page.screenshot({ 
+        result.screenshot = await page.screenshot({
           type: 'png',
           fullPage: opts.fullPage || false
         })
@@ -90,7 +106,7 @@ class BrowseEngine {
       result.url = page.url()
       result.title = await page.title()
       result.cached = false
-      result.engine = 'playwright'
+      result.engine = 'stealth-playwright'
 
       if (!opts.screenshot) {
         this.cache?.set('scrape', url, { content: result.content, url: result.url, title: result.title })
@@ -104,31 +120,27 @@ class BrowseEngine {
   }
 
   /**
-   * Browse with Camoufox (stealth, anti-fingerprint).
-   * Connects to existing Camoufox HTTP service.
+   * Camoufox — optional deep anti-detect.
+   * Requires external Camoufox service (set camoufox.url in config).
    */
   async _browseCamoufox(url, opts) {
-    // Check if Camoufox is available
     if (this._camoufoxAvailable === null) {
       const health = await this.camoufox.health()
       this._camoufoxAvailable = health.available
     }
 
     if (!this._camoufoxAvailable) {
-      throw new Error('Camoufox not available. Start it with: systemctl start camoufox-reddit (or run service.py)')
+      throw new Error('Camoufox configured but not running. Check your camoufox.url setting.')
     }
 
-    // Inject cookies if needed
     if (opts._cookies) {
       await this.camoufox.setCookies(opts._cookies)
     }
 
-    // Navigate
     await this.camoufox.navigate(url, { wait: 3000 })
 
     const result = { engine: 'camoufox', cached: false }
 
-    // Get text content
     if (opts.extract !== false) {
       const textData = await this.camoufox.getText()
       result.content = textData.text
@@ -136,7 +148,6 @@ class BrowseEngine {
       result.url = textData.url
     }
 
-    // Screenshot
     if (opts.screenshot) {
       const ssData = await this.camoufox.screenshot()
       result.screenshotPath = ssData.path
@@ -149,9 +160,6 @@ class BrowseEngine {
     return result
   }
 
-  /**
-   * Check if an error indicates the page blocked/detected us.
-   */
   _isBlocked(err) {
     const msg = (err.message || '').toLowerCase()
     return msg.includes('captcha') ||
@@ -165,18 +173,57 @@ class BrowseEngine {
 
   async _getBrowser() {
     if (this.browser) return this.browser
-    const { chromium } = require('playwright')
-    this.browser = await chromium.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    })
+
+    try {
+      // Try playwright-extra with stealth (preferred)
+      const { chromium } = require('playwright-extra')
+      const stealth = require('puppeteer-extra-plugin-stealth')
+      chromium.use(stealth())
+
+      this.browser = await chromium.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      })
+      console.log('Browse engine: stealth playwright (anti-detect ON)')
+    } catch (e) {
+      // Fallback to vanilla playwright
+      const { chromium } = require('playwright')
+      this.browser = await chromium.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      })
+      console.log('Browse engine: vanilla playwright (install playwright-extra for stealth)')
+    }
+
     return this.browser
   }
 
   async _createContext(browser, opts) {
+    // Randomized but realistic fingerprint
+    const resolutions = [
+      { width: 1920, height: 1080 },
+      { width: 1536, height: 864 },
+      { width: 1440, height: 900 },
+      { width: 1366, height: 768 },
+      { width: 2560, height: 1440 }
+    ]
+    const viewport = resolutions[Math.floor(Math.random() * resolutions.length)]
+
+    const userAgents = [
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0',
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Safari/605.1.15'
+    ]
+    const userAgent = userAgents[Math.floor(Math.random() * userAgents.length)]
+
     const contextOpts = {
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-      viewport: { width: 1920, height: 1080 }
+      userAgent,
+      viewport,
+      locale: 'en-US',
+      timezoneId: 'America/New_York',
+      colorScheme: 'light',
+      deviceScaleFactor: Math.random() > 0.5 ? 1 : 2
     }
 
     if (this.config.proxy) {
@@ -188,23 +235,6 @@ class BrowseEngine {
     }
 
     return browser.newContext(contextOpts)
-  }
-
-  async _humanlikeNav(page, url) {
-    const delay = this.config.humanlike || {}
-    const min = delay.minDelay || 500
-    const max = delay.maxDelay || 2000
-
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 })
-    await page.waitForTimeout(min + Math.random() * (max - min))
-    
-    if (delay.scrollBehavior) {
-      await page.evaluate(async () => {
-        const distance = Math.floor(Math.random() * 500) + 200
-        window.scrollBy({ top: distance, behavior: 'smooth' })
-      })
-      await page.waitForTimeout(min + Math.random() * (max - min))
-    }
   }
 
   async close() {

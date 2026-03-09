@@ -4,7 +4,7 @@ const path = require('path')
 const DEFAULTS = {
   port: 3900,
   search: {
-    cascade: ['searxng', 'ddg', 'brave', 'serper'],
+    cascade: ['gemini-grounded', 'brave', 'ddg'],
     scrapeTop: 3,
     searxng: { url: 'http://localhost:8888' },
     llm: null // { provider, model, apiKey }

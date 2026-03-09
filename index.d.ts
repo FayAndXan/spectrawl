@@ -1,90 +1,108 @@
 declare module 'spectrawl' {
-  export interface SearchResult {
-    sources: Array<{
-      url: string
-      title: string
-      snippet?: string
-      content?: string
-    }>
-    answer?: string
-    engine: string
-    cached: boolean
+  interface SpectrawlConfig {
+    search?: {
+      cascade?: string[]
+      scrapeTop?: number
+      geminiKey?: string
+      'gemini-grounded'?: { apiKey?: string; model?: string }
+      llm?: { provider: string; model?: string; apiKey?: string }
+      sourceRanker?: {
+        weights?: Record<string, number>
+        boost?: string[]
+        block?: string[]
+      }
+    }
+    browse?: {
+      defaultEngine?: string
+      proxy?: { type: string; host: string; port: number; username?: string; password?: string }
+      humanlike?: { minDelay?: number; maxDelay?: number; scrollBehavior?: boolean }
+    }
+    auth?: {
+      refreshInterval?: string
+      cookieStore?: string
+    }
+    cache?: {
+      path?: string
+      searchTtl?: number
+      scrapeTtl?: number
+      screenshotTtl?: number
+    }
+    rateLimit?: Record<string, { postsPerHour?: number; minDelayMs?: number }>
+    proxy?: {
+      localPort?: number
+      strategy?: 'round-robin' | 'random' | 'least-used'
+      upstreams?: { url: string }[]
+    }
   }
 
-  export interface BrowseResult {
-    content?: string
-    html?: string
-    screenshot?: Buffer
-    url: string
+  interface SearchResult {
     title: string
-    engine: 'stealth-playwright' | 'camoufox' | 'remote-camoufox' | 'playwright'
+    url: string
+    snippet: string
+    content?: string
+    score?: number
+    engine?: string
+  }
+
+  interface SearchResponse {
+    answer: string | null
+    sources: SearchResult[]
     cached: boolean
-    cookies?: any[]
   }
 
-  export interface ActResult {
-    success: boolean
-    error?: string
-    detail?: string
-    suggestion?: string
-    retryAfter?: number
-    url?: string
-    [key: string]: any
+  interface DeepSearchResponse {
+    answer: string | null
+    sources: SearchResult[]
+    queries: string[]
+    cached: boolean
   }
 
-  export interface AccountStatus {
+  interface DeepSearchOptions {
+    mode?: 'fast' | 'full'
+    scrapeTop?: number
+    expand?: boolean
+    rerank?: boolean
+  }
+
+  interface BrowseResult {
+    content: string
+    text?: string
+    screenshot?: Buffer
+    engine: string
+    url: string
+  }
+
+  interface AuthStatus {
     platform: string
     account: string
-    status: 'valid' | 'expiring' | 'expired' | 'unknown'
+    status: 'valid' | 'expired' | 'unknown'
     expiresAt?: string
-    cookieCount?: number
   }
 
-  export interface SearchOptions {
-    summarize?: boolean
-    minResults?: number
-    noCache?: boolean
-  }
+  class Spectrawl {
+    constructor(config?: SpectrawlConfig | string)
 
-  export interface BrowseOptions {
-    screenshot?: boolean
-    fullPage?: boolean
-    html?: boolean
-    extract?: boolean
-    stealth?: boolean
-    camoufox?: boolean
-    noCache?: boolean
-    saveCookies?: boolean
-    _cookies?: any[]
-  }
+    /** Basic search — raw results from cascade engines */
+    search(query: string, opts?: { summarize?: boolean; scrapeTop?: number; engines?: string[] }): Promise<SearchResponse>
 
-  export interface ActParams {
-    text?: string
-    title?: string
-    body?: string
-    account?: string
-    group?: string
-    postUrl?: string
-    tweetId?: string
-    mediaIds?: string[]
-    _cookies?: any[]
-    [key: string]: any
-  }
+    /** Deep search — Tavily-equivalent with citations. Set GEMINI_API_KEY for best results. */
+    deepSearch(query: string, opts?: DeepSearchOptions): Promise<DeepSearchResponse>
 
-  export class Spectrawl {
-    constructor(config?: any)
-    search(query: string, opts?: SearchOptions): Promise<SearchResult>
-    browse(url: string, opts?: BrowseOptions): Promise<BrowseResult>
-    act(platform: string, action: string, params?: ActParams): Promise<ActResult>
-    status(): Promise<AccountStatus[]>
+    /** Browse a URL with stealth anti-detection */
+    browse(url: string, opts?: { screenshot?: boolean; timeout?: number; extractText?: boolean }): Promise<BrowseResult>
+
+    /** Act on a platform (post, comment, submit) */
+    act(platform: string, action: string, params: Record<string, any>): Promise<any>
+
+    /** Check auth health for all configured accounts */
+    status(): Promise<AuthStatus[]>
+
+    /** Get raw Playwright page for custom automation */
+    getPage(url: string, opts?: any): Promise<any>
+
+    /** Close all connections */
     close(): Promise<void>
   }
 
-  export function installStealth(): Promise<{
-    path: string
-    binary?: string
-    version: string
-  }>
-
-  export function isStealthInstalled(): boolean
+  export { Spectrawl, SpectrawlConfig, SearchResult, SearchResponse, DeepSearchResponse, DeepSearchOptions, BrowseResult, AuthStatus }
 }

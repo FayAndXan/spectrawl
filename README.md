@@ -2,6 +2,8 @@
 
 The unified web layer for AI agents. Search, browse, authenticate, and act on platforms — one tool, self-hosted, free.
 
+**Free Tavily alternative** with Google-quality results via Gemini Grounded Search.
+
 ## What It Does
 
 AI agents need to interact with the web. That means searching, browsing pages, logging into platforms, and posting content. Today you duct-tape together Playwright + Tavily + cookie managers + platform-specific scripts. Spectrawl replaces all of that.
@@ -10,123 +12,121 @@ AI agents need to interact with the web. That means searching, browsing pages, l
 npm install spectrawl
 ```
 
-**Search** — 6 engines in a cascade: SearXNG → DuckDuckGo → Brave → Serper → Google CSE → Jina. Tries free/unlimited first, falls through to quota-based. Dual scraping (Jina Reader + readability). Optional LLM summarization.
-
-**Browse** — Stealth browsing with anti-detection out of the box. Three tiers:
-1. `playwright-extra` + stealth plugin (default, works immediately)
-2. Camoufox binary — engine-level anti-fingerprint (`npx spectrawl install-stealth`)
-3. Remote Camoufox service (for existing deployments)
-
-**Auth** — Persistent cookie storage (SQLite), multi-account management, automatic cookie refresh, expiry alerts.
-
-**Act** — 24 platform adapters covering 30+ sites:
-- **Content platforms:** X, Reddit, LinkedIn, Dev.to, Hashnode, IndieHackers, Medium, Hacker News, Quora
-- **Developer:** GitHub (repos, issues, releases), HuggingFace (models, datasets), Discord (bot + webhooks)
-- **Launch/SEO:** Product Hunt, BetaList, AlternativeTo, SaaSHub, DevHunt, AppSumo
-- **Directories:** Generic adapter for MicroLaunch, Uneed, Peerlist, Fazier, BetaPage, LaunchingNext, StartupStash, SideProjectors, TAIFT, Futurepedia, Crunchbase, G2, StackShare, YouTube
-- Rate limiting, content dedup, dead letter queue for retries.
-
-**Proxy** — Rotating proxy server. One endpoint (`localhost:8080`) for all your tools. Round-robin, random, or least-used strategies. Health checking with auto-failover.
-
 ## Quick Start
 
 ```bash
 npm install spectrawl
-npx spectrawl init          # create spectrawl.json config
-npx spectrawl search "your query"
+export GEMINI_API_KEY=your-free-key  # Get one at aistudio.google.com
 ```
-
-### As a Library
 
 ```js
 const { Spectrawl } = require('spectrawl')
 const web = new Spectrawl()
 
-// Search
-const results = await web.search('best practices for node.js APIs')
-console.log(results.sources)      // [{ url, title, snippet, content }]
-console.log(results.answer)       // LLM summary (if configured)
+// Deep search — like Tavily but free
+const result = await web.deepSearch('best AI agent frameworks 2025')
+console.log(result.answer)    // AI-generated answer with citations
+console.log(result.sources)   // [{ title, url, content, score }]
 
-// Browse with stealth
+// Fast mode — snippets only, ~6s
+const fast = await web.deepSearch('query', { mode: 'fast' })
+
+// Basic search — raw results, no AI
+const basic = await web.search('query')
+```
+
+### vs Tavily
+
+| | Tavily | Spectrawl |
+|---|---|---|
+| Speed | ~2s | ~6-9s |
+| Search quality | Google index | Google via Gemini ✅ |
+| Results per query | 10 | 12-16 ✅ |
+| Citations | ✅ | ✅ |
+| Cost | $0.01/query | **Free** ✅ |
+| Self-hosted | No | **Yes** ✅ |
+| Stealth scraping | No | **Yes** ✅ |
+| Auth + posting | No | **24 adapters** ✅ |
+| Cached repeats | No | **<1ms** ✅ |
+
+## Search
+
+Default cascade: **Gemini Grounded → Brave → DDG**
+
+Gemini Grounded Search gives you Google-quality results through the Gemini API. Free tier: 5,000 grounded queries/month.
+
+| Engine | Free Tier | Key Required | Default |
+|--------|-----------|-------------|---------|
+| **Gemini Grounded** | 5,000/month | `GEMINI_API_KEY` | ✅ Primary |
+| Brave | 2,000/month | `BRAVE_API_KEY` | ✅ Fallback |
+| DuckDuckGo | Unlimited | None | ✅ Last resort |
+| Bing | Unlimited | None | Available |
+| Serper | 2,500 trial | `SERPER_API_KEY` | Available |
+| Google CSE | 100/day | `GOOGLE_CSE_KEY` | Available |
+| Jina Reader | Unlimited | None | Available |
+| SearXNG | Unlimited | Self-hosted | Available |
+
+### Deep Search Pipeline
+
+```
+Query → Gemini Grounded + DDG (parallel)
+  → Merge & deduplicate (12-16 results)
+  → Source quality ranking (boost GitHub/SO/Reddit, penalize SEO spam)
+  → Parallel scraping (Jina → readability → Playwright fallback)
+  → AI summarization with [1] [2] citations
+```
+
+### What you get without any keys
+
+DDG-only search, raw results, no AI answer. Works from home IPs. Datacenter IPs get rate-limited by DDG — recommend at minimum a free Gemini key.
+
+## Browse
+
+Stealth browsing with anti-detection. Three tiers (auto-detected):
+
+1. **playwright-extra + stealth plugin** — default, works immediately
+2. **Camoufox binary** — engine-level anti-fingerprint (`npx spectrawl install-stealth`)
+3. **Remote Camoufox** — for existing deployments
+
+```js
 const page = await web.browse('https://example.com')
-console.log(page.content)         // extracted text
-console.log(page.engine)          // 'stealth-playwright' or 'camoufox'
+console.log(page.content)       // extracted text/markdown
+console.log(page.screenshot)    // PNG buffer (if requested)
 
-// Act on platforms
-await web.act('x', 'post', {
-  text: 'Hello from Spectrawl',
-  account: '@myhandle'
-})
+// With screenshot
+const page = await web.browse('https://example.com', { screenshot: true })
+```
 
-// Check auth health
+Auto-fallback: if Jina and readability return too little content (<200 chars), Spectrawl renders the page with Playwright and extracts from the rendered DOM. Tavily can't do this — they fail on JS-heavy pages.
+
+## Auth
+
+Persistent cookie storage (SQLite), multi-account management, automatic refresh.
+
+```js
+// Store cookies
+await web.auth.setCookies('x', '@myhandle', cookies)
+
+// Check health
 const accounts = await web.status()
 // [{ platform: 'x', account: '@myhandle', status: 'valid', expiresAt: '...' }]
 ```
 
-### HTTP Server
+## Act — 24 Platform Adapters
 
-```bash
-npx spectrawl serve --port 3900
+Post to 30+ platforms with one API:
+
+```js
+await web.act('x', 'post', { text: 'Hello from Spectrawl', account: '@myhandle' })
+await web.act('reddit', 'post', { subreddit: 'node', title: '...', text: '...' })
+await web.act('github', 'create-repo', { name: 'my-repo', description: '...' })
 ```
-
-```
-POST /search   { "query": "...", "summarize": true }
-POST /browse   { "url": "...", "screenshot": true }
-POST /act      { "platform": "x", "action": "post", "params": { "text": "..." } }
-GET  /status
-GET  /health
-```
-
-### MCP Server
-
-Works with any MCP-compatible agent framework:
-
-```bash
-npx spectrawl mcp
-```
-
-Exposes 5 tools: `web_search`, `web_browse`, `web_act`, `web_auth`, `web_status`.
-
-## Stealth Browsing
-
-Default: `playwright-extra` with stealth plugin patches webdriver detection, navigator properties, canvas/WebGL fingerprinting, and plugin enumeration. Works for ~90% of sites.
-
-For deeper anti-detection:
-
-```bash
-npx spectrawl install-stealth
-```
-
-Downloads the [Camoufox](https://github.com/daijro/camoufox) browser — a patched Firefox with engine-level anti-fingerprint. Spectrawl auto-detects and uses it.
-
-## Search Engines
-
-| Engine | Free Tier | Default |
-|--------|-----------|---------|
-| SearXNG | Unlimited (self-hosted) | ✅ |
-| DuckDuckGo | Unlimited | ✅ |
-| Brave | 2,000/month | ✅ |
-| Serper | 2,500/month | Fallback |
-| Google CSE | 100/day | Fallback |
-| Jina Reader | Unlimited | Fallback |
-
-Configure the cascade in `spectrawl.json`:
-
-```json
-{
-  "search": {
-    "cascade": ["searxng", "ddg", "brave", "serper", "google-cse", "jina"]
-  }
-}
-```
-
-## Platform Adapters
 
 | Platform | Auth Method | Actions |
 |----------|-------------|---------|
 | X/Twitter | GraphQL Cookie + OAuth 1.0a | post |
 | Reddit | Cookie API (oauth.reddit.com) | post, comment |
-| Dev.to | REST API (API key) | post |
+| Dev.to | REST API | post |
 | Hashnode | GraphQL API | post |
 | LinkedIn | Cookie API (Voyager) | post |
 | IndieHackers | Browser automation | post, comment, upvote |
@@ -135,14 +135,70 @@ Configure the cascade in `spectrawl.json`:
 | Discord | Bot API + webhooks | send, thread |
 | Product Hunt | GraphQL v2 | launch, comment, upvote |
 | Hacker News | Cookie/form POST | submit, comment, upvote |
-| YouTube | Data API v3 | comment, playlist, update |
+| YouTube | Data API v3 | comment, playlist |
 | Quora | Browser automation | answer, question |
 | HuggingFace | Hub API | repo, model card, upload |
 | BetaList | REST API | submit |
 | AlternativeTo | Browser automation | submit |
 | SaaSHub | Browser automation | submit |
 | DevHunt | Browser automation | submit |
-| **30+ Directories** | Generic adapter | submit (MicroLaunch, Uneed, TAIFT, Futurepedia, Crunchbase, G2, etc.) |
+| **14 Directories** | Generic adapter | submit |
+
+Built-in rate limiting, content dedup (MD5, 24h window), and dead letter queue for retries.
+
+## Source Quality Ranking
+
+Spectrawl ranks results by domain trust — something Tavily doesn't do:
+
+- **Boosted:** GitHub, StackOverflow, HN, Reddit, MDN, arxiv, Wikipedia
+- **Penalized:** SEO farms, thin content sites, tag/category pages
+- **Customizable:** bring your own domain weights
+
+```js
+const web = new Spectrawl({
+  search: {
+    sourceRanker: {
+      boost: ['github.com', 'news.ycombinator.com'],
+      block: ['spamsite.com']
+    }
+  }
+})
+```
+
+## HTTP Server
+
+```bash
+npx spectrawl serve --port 3900
+```
+
+```
+POST /search   { "query": "...", "summarize": true }
+POST /browse   { "url": "...", "screenshot": true }
+POST /act      { "platform": "x", "action": "post", "params": { ... } }
+GET  /status
+GET  /health
+```
+
+## MCP Server
+
+Works with any MCP-compatible agent framework (Claude, OpenAI, etc.):
+
+```bash
+npx spectrawl mcp
+```
+
+5 tools: `web_search`, `web_browse`, `web_act`, `web_auth`, `web_status`.
+
+## CLI
+
+```bash
+npx spectrawl init              # create spectrawl.json
+npx spectrawl search "query"    # search from terminal
+npx spectrawl status            # check auth health
+npx spectrawl serve             # start HTTP server
+npx spectrawl mcp               # start MCP server
+npx spectrawl install-stealth   # download Camoufox browser
+```
 
 ## Configuration
 
@@ -150,28 +206,23 @@ Configure the cascade in `spectrawl.json`:
 
 ```json
 {
-  "port": 3900,
   "search": {
-    "cascade": ["ddg", "brave"],
+    "cascade": ["gemini-grounded", "brave", "ddg"],
     "scrapeTop": 3
   },
   "cache": {
-    "path": "./data/cache.db",
-    "searchTtl": 1,
-    "scrapeTtl": 24
+    "searchTtl": 3600,
+    "scrapeTtl": 86400
   },
   "proxy": {
     "localPort": 8080,
     "strategy": "round-robin",
     "upstreams": [
-      { "url": "http://user:pass@proxy1.example.com:8080" }
+      { "url": "http://user:pass@proxy.example.com:8080" }
     ]
   },
-  "camoufox": {
-    "url": "http://localhost:9869"
-  },
   "rateLimit": {
-    "x": { "postsPerHour": 3, "minDelayMs": 60000 },
+    "x": { "postsPerHour": 3 },
     "reddit": { "postsPerHour": 5 }
   }
 }
@@ -180,15 +231,14 @@ Configure the cascade in `spectrawl.json`:
 ## Environment Variables
 
 ```
-BRAVE_API_KEY       Brave Search API key
+GEMINI_API_KEY      Gemini API key (free — primary search + summarization)
+BRAVE_API_KEY       Brave Search API key (2,000 free/month)
 SERPER_API_KEY      Serper.dev API key
 GOOGLE_CSE_KEY      Google Custom Search API key
 GOOGLE_CSE_CX       Google Custom Search engine ID
 JINA_API_KEY        Jina Reader API key (optional)
-SEARXNG_URL         SearXNG instance URL (default: http://localhost:8888)
-CAMOUFOX_URL        Remote Camoufox service URL
-OPENAI_API_KEY      For LLM summarization
-ANTHROPIC_API_KEY   For LLM summarization
+OPENAI_API_KEY      For LLM summarization (alternative to Gemini)
+ANTHROPIC_API_KEY   For LLM summarization (alternative to Gemini)
 ```
 
 ## License

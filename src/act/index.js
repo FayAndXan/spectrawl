@@ -11,6 +11,19 @@ const { DevtoAdapter } = require('./adapters/devto')
 const { HashnodeAdapter } = require('./adapters/hashnode')
 const { LinkedInAdapter } = require('./adapters/linkedin')
 const { IHAdapter } = require('./adapters/ih')
+const { MediumAdapter } = require('./adapters/medium')
+const { GitHubAdapter } = require('./adapters/github')
+const { DiscordAdapter } = require('./adapters/discord')
+const { ProductHuntAdapter } = require('./adapters/producthunt')
+const { HackerNewsAdapter } = require('./adapters/hackernews')
+const { YouTubeAdapter } = require('./adapters/youtube')
+const { QuoraAdapter } = require('./adapters/quora')
+const { HuggingFaceAdapter } = require('./adapters/huggingface')
+const { BetaListAdapter } = require('./adapters/betalist')
+const { AlternativeToAdapter } = require('./adapters/alternativeto')
+const { SaaSHubAdapter } = require('./adapters/saashub')
+const { DevHuntAdapter } = require('./adapters/devhunt')
+const { DirectoryAdapter } = require('./adapters/directory')
 const { RateLimiter } = require('./rate-limiter')
 
 const adapters = {
@@ -22,7 +35,23 @@ const adapters = {
   hashnode: new HashnodeAdapter(),
   linkedin: new LinkedInAdapter(),
   ih: new IHAdapter(),
-  indiehackers: new IHAdapter()
+  indiehackers: new IHAdapter(),
+  medium: new MediumAdapter(),
+  github: new GitHubAdapter(),
+  discord: new DiscordAdapter(),
+  producthunt: new ProductHuntAdapter(),
+  'product-hunt': new ProductHuntAdapter(),
+  hackernews: new HackerNewsAdapter(),
+  hn: new HackerNewsAdapter(),
+  youtube: new YouTubeAdapter(),
+  quora: new QuoraAdapter(),
+  huggingface: new HuggingFaceAdapter(),
+  hf: new HuggingFaceAdapter(),
+  betalist: new BetaListAdapter(),
+  alternativeto: new AlternativeToAdapter(),
+  saashub: new SaaSHubAdapter(),
+  devhunt: new DevHuntAdapter(),
+  directory: new DirectoryAdapter()
 }
 
 class ActEngine {

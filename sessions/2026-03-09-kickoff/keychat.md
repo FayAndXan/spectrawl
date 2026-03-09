@@ -26,9 +26,15 @@
 - **Don't fork Firefox** — use Camoufox's prebuilt binaries (Apache 2.0). Hard part already done.
 - **Fay correction: "why did you say no"** — I was wrong to dismiss forking/bundling Camoufox. The binary download model was obvious.
 
+## Session 4 Decisions (16:22-17:10 UTC)
+- **Rate limit before auth** — no point checking cookies if rate limited or duplicate
+- **Reddit OAuth API works from any IP** — no proxy needed for Reddit
+- **X cookie API blocked from datacenter** — Error 226, needs residential proxy or OAuth 1.0a
+- **Proxy server built** — rotating gateway, any tool on server uses localhost:8080
+- **npm published** — spectrawl@0.1.2 live, fay_ account, automation token
+
 ## Next Steps
-- IH browser automation
-- Tests
-- README
-- npm publish
-- End-to-end testing with live accounts
+- Wire proxy server into browse engine automatically
+- Test X posting through residential proxy
+- Expand platform adapters (Fay sending list of pages)
+- GitHub README could use badges (npm version, CI status, license)

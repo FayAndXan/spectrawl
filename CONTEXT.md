@@ -22,12 +22,16 @@ Node.js 20+, Playwright, Camoufox (optional), SQLite (better-sqlite3)
 - **Infra:** MCP server, HTTP server, CLI, events, rate limiter, dedup, dead letter queue
 - **Form filler:** contentEditable, React, shadow DOM
 
-## What's NOT Built
-- IH actual browser automation (stub — no API exists)
-- Tests
-- README
-- npm publish
-- End-to-end testing with live accounts
+## Published
+- npm: `spectrawl@0.1.2` (account: fay_)
+- GitHub: github.com/FayAndXan/spectrawl (10 commits)
+
+## What's NOT Built / Remaining
+- Wire proxy into browse engine automatically (so browse uses residential IPs)
+- Test X posting through residential proxy
+- IH adapter needs real-world testing (browser automation built but untested)
+- GitHub README badges
+- Expand platform adapters (Fay sending list)
 
 ## Relationship to xanOS
 Open-source infra that xanOS uses internally. Distribution funnel: Spectrawl users discover xanOS.

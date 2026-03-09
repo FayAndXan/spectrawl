@@ -35,13 +35,13 @@ async function scrapeUrls(urls, opts = {}) {
 }
 
 async function scrapeUrl(url, opts = {}) {
-  const { timeout = 10000, engine = 'auto' } = opts
+  const { timeout = 10000, engine = 'auto', browse } = opts
 
   // Try Jina first if available (better markdown output)
   if (engine === 'jina' || engine === 'auto') {
     try {
       const result = await jinaExtract(url)
-      if (result.content && result.content.length > 100) {
+      if (result.content && result.content.length > 200) {
         return result.content
       }
     } catch (e) {
@@ -49,9 +49,44 @@ async function scrapeUrl(url, opts = {}) {
     }
   }
 
-  // Readability fallback
-  const html = await fetchPage(url, timeout)
-  return extractMarkdown(html)
+  // Readability fallback (HTTP fetch + HTML→markdown)
+  try {
+    const html = await fetchPage(url, timeout)
+    const content = extractMarkdown(html)
+    if (content && content.length > 200) {
+      return content
+    }
+  } catch (e) {
+    // Fall through to browser
+  }
+
+  // Browser fallback for JS-rendered pages or when extraction is too short
+  // This is where we beat Tavily — they can't render JS pages
+  if (browse !== false) {
+    try {
+      const { BrowseEngine } = require('../browse')
+      const browser = new BrowseEngine()
+      const result = await browser.browse(url, { 
+        timeout, 
+        extractText: true,
+        screenshot: false 
+      })
+      await browser.close()
+      if (result.text && result.text.length > 200) {
+        return result.text
+      }
+    } catch (e) {
+      // All methods exhausted
+    }
+  }
+
+  // Return whatever we got, even if short
+  try {
+    const html = await fetchPage(url, timeout)
+    return extractMarkdown(html)
+  } catch (e) {
+    return ''
+  }
 }
 
 function fetchPage(url, timeout = 10000, redirects = 3) {

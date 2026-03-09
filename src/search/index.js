@@ -144,8 +144,8 @@ class SearchEngine {
     // Step 3: Merge and deduplicate
     let results = dedupeResults(resultSets.flat())
 
-    // Step 4: Rerank by relevance
-    if (this.reranker && opts.rerank !== false) {
+    // Step 4: Rerank by relevance (skip for Gemini Grounded — it already returns scored results)
+    if (this.reranker && opts.rerank !== false && !usesGrounded) {
       results = await this.reranker.rerank(query, results)
     }
 

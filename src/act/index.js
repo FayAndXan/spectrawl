@@ -53,22 +53,9 @@ class ActEngine {
       }
     }
 
-    // Get auth for this platform/account
     const account = params.account
-    if (account) {
-      const cookies = await this.auth.getCookies(platform, account)
-      if (!cookies) {
-        return {
-          success: false,
-          error: 'auth_missing',
-          detail: `No auth found for ${platform}/${account}.`,
-          suggestion: `Run: spectrawl login ${platform} --account ${account}`
-        }
-      }
-      params._cookies = cookies
-    }
 
-    // Check rate limits
+    // Check rate limits FIRST (no point checking auth if rate limited)
     const rateCheck = this.rateLimiter.check(platform, action, params)
     if (!rateCheck.allowed) {
       return {
@@ -92,6 +79,20 @@ class ActEngine {
         detail: `Same content already posted to ${platform} in the last 24h`,
         suggestion: 'Change the content or wait 24h'
       }
+    }
+
+    // Get auth for this platform/account
+    if (account) {
+      const cookies = await this.auth.getCookies(platform, account)
+      if (!cookies) {
+        return {
+          success: false,
+          error: 'auth_missing',
+          detail: `No auth found for ${platform}/${account}.`,
+          suggestion: `Run: spectrawl login ${platform} --account ${account}`
+        }
+      }
+      params._cookies = cookies
     }
 
     try {

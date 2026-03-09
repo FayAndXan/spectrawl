@@ -9,6 +9,7 @@ const { scrapeUrls } = require('./scraper')
 const { Summarizer } = require('./summarizer')
 const { Reranker } = require('./reranker')
 const { QueryExpander } = require('./query-expander')
+const { SourceRanker } = require('./source-ranker')
 
 const ENGINES = {
   searxng: searxngSearch,
@@ -33,6 +34,7 @@ class SearchEngine {
     const geminiKey = config.geminiKey || process.env.GEMINI_API_KEY
     this.reranker = geminiKey ? new Reranker({ apiKey: geminiKey, ...config.reranker }) : null
     this.expander = geminiKey ? new QueryExpander({ apiKey: geminiKey, ...config.expander }) : null
+    this.sourceRanker = new SourceRanker(config.sourceRanker || {})
   }
 
   /**
@@ -90,8 +92,10 @@ class SearchEngine {
 
     const response = { answer, sources: results, cached: false }
     
-    // Cache the result
-    this.cache?.set('search', cacheKey, response)
+    // Only cache if we got results
+    if (results.length > 0) {
+      this.cache?.set('search', cacheKey, response)
+    }
     
     return response
   }
@@ -123,12 +127,23 @@ class SearchEngine {
     // When using Gemini Grounded, also run DDG in parallel for volume
     const resultSets = []
     if (usesGrounded) {
-      // Parallel: Gemini for quality + DDG for volume
+      // Parallel with staggered DDG start (DDG rate-limits concurrent requests from same IP)
+      const delay = ms => new Promise(r => setTimeout(r, ms))
       const [groundedResults, ddgResults] = await Promise.all([
-        this._rawSearch(query, { ...opts, engines: ['gemini-grounded', 'gemini'] }).catch(() => []),
-        this._rawSearch(query, { ...opts, engines: ['ddg'] }).catch(() => [])
+        this._rawSearch(query, { ...opts, engines: ['gemini-grounded', 'gemini'] }).catch(e => { console.warn('Gemini grounded failed:', e.message); return [] }),
+        delay(500).then(() => this._rawSearch(query, { ...opts, engines: ['ddg'] })).catch(e => { console.warn('DDG failed:', e.message); return [] })
       ])
+      if (process.env.SPECTRAWL_DEBUG) {
+        console.log('[deepSearch] Gemini results:', groundedResults.length, '| DDG results:', ddgResults.length)
+      }
       resultSets.push(groundedResults, ddgResults)
+      
+      // If primary failed, retry with a different approach
+      if (groundedResults.length === 0 && ddgResults.length === 0) {
+        await delay(1000)
+        const retry = await this._rawSearch(query, { ...opts, engines: this.cascade }).catch(() => [])
+        resultSets.push(retry)
+      }
     } else {
       for (const q of queries) {
         try {
@@ -142,12 +157,20 @@ class SearchEngine {
     }
 
     // Step 3: Merge and deduplicate
-    let results = dedupeResults(resultSets.flat())
+    const flatResults = resultSets.flat()
+    let results = dedupeResults(flatResults)
+    if (process.env.SPECTRAWL_DEBUG) {
+      console.log('[deepSearch] resultSets lengths:', resultSets.map(s => s.length))
+      console.log('[deepSearch] flat:', flatResults.length, '→ deduped:', results.length)
+    }
 
-    // Step 4: Rerank by relevance (skip for Gemini Grounded — it already returns scored results)
+    // Step 4a: Rerank by relevance (skip for Gemini Grounded — it already returns scored results)
     if (this.reranker && opts.rerank !== false && !usesGrounded) {
       results = await this.reranker.rerank(query, results)
     }
+
+    // Step 4b: Source quality ranking — boost trusted domains, penalize SEO spam
+    results = this.sourceRanker.rank(results)
 
     // Step 5: Parallel scrape top N for full content (skip in fast mode)
     const scrapeCount = opts.mode === 'fast' ? 0 : (opts.scrapeTop ?? this.scrapeTop ?? 5)
@@ -188,7 +211,10 @@ class SearchEngine {
       cached: false
     }
 
-    this.cache?.set('search', cacheKey, response)
+    // Only cache if we got results — never cache failures
+    if (response.sources.length > 0) {
+      this.cache?.set('search', cacheKey, response)
+    }
     return response
   }
 

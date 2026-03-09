@@ -31,10 +31,15 @@ class Summarizer {
       .map((s, i) => `[${i + 1}] ${s.title}\n${s.url}\n${(s.fullContent || s.snippet || '').slice(0, 1000)}`)
       .join('\n\n')
 
-    const prompt = `Based on the following search results, provide a concise answer to the query: "${query}"
+    const prompt = `Answer this question directly: "${query}"
 
-Include citations as [1], [2], etc. referencing the source numbers below.
-Be direct and factual. If the sources don't contain enough information, say so.
+Rules:
+- Give a clear, specific answer. Name things, list tools, state facts.
+- Use [1], [2] etc. to cite sources inline.
+- Never say "based on the provided sources" or "according to search results."
+- Never hedge with "it appears" or "it seems." Be direct.
+- If sources disagree, note it briefly.
+- Keep it concise — 2-4 paragraphs max.
 
 Sources:
 ${context}
@@ -77,7 +82,7 @@ Answer:`
     const body = JSON.stringify({
       model: this.model,
       messages: [
-        { role: 'system', content: 'You are a concise search assistant. Answer with citations.' },
+        { role: 'system', content: 'You are a search engine. Give direct, specific answers with numbered citations. Never hedge or qualify with "based on sources" — just answer the question.' },
         { role: 'user', content: prompt }
       ],
       max_tokens: 500,

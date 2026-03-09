@@ -12,9 +12,24 @@ const { EventEmitter, EVENTS } = require('./events')
 const { CookieRefresher } = require('./auth/refresh')
 const { loadConfig } = require('./config')
 
+function deepMergeConfig(target, source) {
+  const result = { ...target }
+  for (const key of Object.keys(source)) {
+    if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+      result[key] = deepMergeConfig(target[key] || {}, source[key])
+    } else {
+      result[key] = source[key]
+    }
+  }
+  return result
+}
+
 class Spectrawl {
   constructor(configPath) {
-    this.config = loadConfig(configPath)
+    // Accept either a file path (string) or a config object
+    this.config = (typeof configPath === 'object' && configPath !== null)
+      ? deepMergeConfig(loadConfig(null), configPath)
+      : loadConfig(configPath)
     this.events = new EventEmitter()
     this.cache = new Cache(this.config.cache)
     this.searchEngine = new SearchEngine(this.config.search, this.cache)

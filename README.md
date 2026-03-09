@@ -16,7 +16,7 @@ Spectrawl is one package that does it all.
 
 | Capability | What | How |
 |-----------|------|-----|
-| **Search** | Free Tavily replacement | DDG → Brave → Serper cascade + scraping + LLM summary |
+| **Search** | Free Tavily replacement | SearXNG → DDG → Brave → Serper cascade + scraping + LLM summary |
 | **Browse** | Stealth web browsing | Playwright → Camoufox escalation, proxy rotation, fingerprint mgmt |
 | **Auth** | Persistent login sessions | Cookie lifecycle, auto-refresh, multi-account management |
 | **Act** | Platform actions | Post, comment, like — via API or stealth browser per platform |

@@ -35,7 +35,7 @@ agent.search("dental implants seoul", { summarize: true, scrapeTop: 3 })
 
 **Search cascade (saves quota):**
 ```
-DuckDuckGo (free, unlimited)
+SearXNG (self-hosted, 70+ engines)
   → not enough? → Brave (2000/mo free)
   → still not enough? → Serper (2500/mo free)
   → Google CSE (100/day free)

@@ -1,10 +1,12 @@
 const { ddgSearch } = require('./engines/ddg')
 const { braveSearch } = require('./engines/brave')
 const { serperSearch } = require('./engines/serper')
+const { searxngSearch } = require('./engines/searxng')
 const { scrapeUrls } = require('./scraper')
 const { Summarizer } = require('./summarizer')
 
 const ENGINES = {
+  searxng: searxngSearch,
   ddg: ddgSearch,
   brave: braveSearch,
   serper: serperSearch

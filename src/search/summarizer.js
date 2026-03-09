@@ -17,7 +17,8 @@ class Summarizer {
       openai: 'OPENAI_API_KEY',
       anthropic: 'ANTHROPIC_API_KEY',
       minimax: 'MINIMAX_API_KEY',
-      xai: 'XAI_API_KEY'
+      xai: 'XAI_API_KEY',
+      gemini: 'GEMINI_API_KEY'
     }
     return keys[this.provider] || 'OPENAI_API_KEY'
   }
@@ -56,6 +57,8 @@ Answer:`
         return this._openaiCompatible(prompt)
       case 'anthropic':
         return this._anthropic(prompt)
+      case 'gemini':
+        return this._gemini(prompt)
       case 'ollama':
         return this._ollama(prompt)
       default:
@@ -104,6 +107,18 @@ Answer:`
     })
 
     return data.content?.[0]?.text || null
+  }
+
+  async _gemini(prompt) {
+    const model = this.model || 'gemini-2.0-flash'
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.apiKey}`
+    const body = JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.3, maxOutputTokens: 500 }
+    })
+
+    const data = await postJson(url, body, { 'Content-Type': 'application/json' })
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || null
   }
 
   async _ollama(prompt) {

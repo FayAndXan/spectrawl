@@ -33,8 +33,18 @@
 - **Proxy server built** — rotating gateway, any tool on server uses localhost:8080
 - **npm published** — spectrawl@0.1.2 live, fay_ account, automation token
 
+## Session 5 Decisions (17:10-18:06 UTC)
+- **24 adapters total** — went from 6 to 24 in one session
+- **Generic directory adapter** — one adapter handles 14+ directories with custom selectors each
+- **Tier system for directories** — T1 (build dedicated), T2 (generic adapter), T3 (skip/email)
+- **Full automation loop** — XanLens audits → xanOS generates → Spectrawl publishes (confirmed architecture)
+- **v0.2.0 published** — major version bump for adapter expansion
+- **XanLens audit platforms** all covered: Wikipedia (manual), Crunchbase, GitHub, LinkedIn, X, Product Hunt, G2, Discord, Medium, YouTube, Reddit, PitchBook (manual), StackShare + HuggingFace, npm, PyPI, Dev.to (industry)
+
 ## Next Steps
 - Wire proxy server into browse engine automatically
 - Test X posting through residential proxy
-- Expand platform adapters (Fay sending list of pages)
-- GitHub README could use badges (npm version, CI status, license)
+- Live testing of new adapters (Medium, GitHub, Discord, PH, HN, YouTube)
+- Browser-automation adapters need real-world selector validation (Quora, AlternativeTo, SaaSHub, DevHunt)
+- GitHub README badges (npm version, CI status, license)
+- npm/PyPI adapters (publish packages programmatically)

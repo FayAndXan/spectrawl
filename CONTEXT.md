@@ -23,15 +23,26 @@ Node.js 20+, Playwright, Camoufox (optional), SQLite (better-sqlite3)
 - **Form filler:** contentEditable, React, shadow DOM
 
 ## Published
-- npm: `spectrawl@0.1.2` (account: fay_)
-- GitHub: github.com/FayAndXan/spectrawl (10 commits)
+- npm: `spectrawl@0.2.1` (account: fay_)
+- GitHub: github.com/FayAndXan/spectrawl (14 commits)
+
+## Platform Adapters (24 total)
+### API-based (14)
+X, Reddit, LinkedIn, Dev.to, Hashnode, Medium, GitHub, Discord, Product Hunt, YouTube, HuggingFace, BetaList + IH (browser), HN (cookie form)
+
+### Browser automation (5)
+Quora, AlternativeTo, SaaSHub, DevHunt, IH
+
+### Generic directory (1 adapter, 14 sites)
+MicroLaunch, Uneed, Peerlist, Fazier, BetaPage, LaunchingNext, StartupStash, SideProjectors, TAIFT, Futurepedia, Crunchbase, G2, StackShare, AppSumo
 
 ## What's NOT Built / Remaining
-- Wire proxy into browse engine automatically (so browse uses residential IPs)
+- Wire proxy into browse engine automatically
 - Test X posting through residential proxy
-- IH adapter needs real-world testing (browser automation built but untested)
+- Live test new adapters (Medium, GitHub, Discord, PH, HN, YouTube)
+- Browser automation selectors need validation (Quora, AlternativeTo, SaaSHub, DevHunt)
 - GitHub README badges
-- Expand platform adapters (Fay sending list)
+- npm/PyPI publish adapters (programmatic package publishing)
 
 ## Relationship to xanOS
 Open-source infra that xanOS uses internally. Distribution funnel: Spectrawl users discover xanOS.

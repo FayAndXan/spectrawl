@@ -6,6 +6,8 @@ const { googleCseSearch } = require('./engines/google-cse')
 const { jinaSearch } = require('./engines/jina')
 const { scrapeUrls } = require('./scraper')
 const { Summarizer } = require('./summarizer')
+const { Reranker } = require('./reranker')
+const { QueryExpander } = require('./query-expander')
 
 const ENGINES = {
   searxng: searxngSearch,
@@ -23,6 +25,11 @@ class SearchEngine {
     this.cascade = config.cascade || ['ddg', 'brave', 'serper']
     this.scrapeTop = config.scrapeTop || 3
     this.summarizer = config.llm ? new Summarizer(config.llm) : null
+    
+    // Gemini-powered features (free tier)
+    const geminiKey = config.geminiKey || process.env.GEMINI_API_KEY
+    this.reranker = geminiKey ? new Reranker({ apiKey: geminiKey, ...config.reranker }) : null
+    this.expander = geminiKey ? new QueryExpander({ apiKey: geminiKey, ...config.expander }) : null
   }
 
   /**
@@ -84,6 +91,118 @@ class SearchEngine {
     this.cache?.set('search', cacheKey, response)
     
     return response
+  }
+
+  /**
+   * Deep search — Tavily-equivalent "advanced" mode.
+   * Query expansion → parallel search → merge/dedup → rerank → scrape top N → summarize with citations.
+   * 
+   * Returns: { answer, sources: [{title, url, content, score}], cached }
+   */
+  async deepSearch(query, opts = {}) {
+    if (!query || !query.trim()) {
+      throw new Error('Search query is required')
+    }
+
+    // Check cache
+    const cacheKey = `deep:${query}:${JSON.stringify(opts)}`
+    const cached = this.cache?.get('search', cacheKey)
+    if (cached) return { ...cached, cached: true }
+
+    // Step 1: Query expansion
+    let queries = [query]
+    if (this.expander && opts.expand !== false) {
+      queries = await this.expander.expand(query)
+    }
+
+    // Step 2: Search across all query variants (with stagger to avoid rate limits)
+    const resultSets = []
+    for (const q of queries) {
+      try {
+        const r = await this._rawSearch(q, opts)
+        resultSets.push(r)
+      } catch (e) {
+        resultSets.push([])
+      }
+      // Small delay between queries to avoid rate limiting
+      if (queries.length > 1) await new Promise(r => setTimeout(r, 300))
+    }
+
+    // Step 3: Merge and deduplicate
+    let results = this.expander
+      ? this.expander.mergeResults(resultSets)
+      : dedupeResults(resultSets.flat())
+
+    // Step 4: Rerank by relevance
+    if (this.reranker && opts.rerank !== false) {
+      results = await this.reranker.rerank(query, results)
+    }
+
+    // Step 5: Parallel scrape top N for full content
+    const scrapeCount = opts.scrapeTop ?? this.scrapeTop ?? 5
+    if (scrapeCount > 0 && results.length > 0) {
+      const urls = results.slice(0, scrapeCount).map(r => r.url)
+      const scraped = await scrapeUrls(urls)
+      
+      for (const result of results) {
+        const scrapedContent = scraped[result.url]
+        if (scrapedContent) {
+          result.fullContent = scrapedContent
+        }
+      }
+    }
+
+    // Step 6: Summarize with citations
+    let answer = null
+    const summarizer = this.summarizer || (this.reranker ? new Summarizer({
+      provider: 'gemini',
+      model: 'gemini-2.0-flash',
+      apiKey: process.env.GEMINI_API_KEY
+    }) : null)
+
+    if (summarizer) {
+      answer = await summarizer.summarize(query, results)
+    }
+
+    const response = {
+      answer,
+      sources: results.map(r => ({
+        title: r.title,
+        url: r.url,
+        snippet: r.snippet,
+        content: r.fullContent?.slice(0, 2000) || r.snippet || '',
+        score: r.score || null
+      })),
+      queries, // show which queries were used
+      cached: false
+    }
+
+    this.cache?.set('search', cacheKey, response)
+    return response
+  }
+
+  /**
+   * Raw search without reranking or summarization.
+   * Used internally by deepSearch for parallel query variants.
+   */
+  async _rawSearch(query, opts = {}) {
+    let results = []
+    const minResults = opts.minResults || 5
+
+    for (const engineName of this.cascade) {
+      const engine = ENGINES[engineName]
+      if (!engine) continue
+
+      try {
+        const engineResults = await engine(query, this.config[engineName] || {})
+        results = dedupeResults([...results, ...engineResults])
+        if (results.length >= minResults) break
+      } catch (err) {
+        continue
+      }
+    }
+
+    return results
   }
 
   async _summarize(query, results) {

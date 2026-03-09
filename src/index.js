@@ -35,6 +35,18 @@ class Spectrawl {
   }
 
   /**
+   * Deep search — Tavily-equivalent "advanced" mode.
+   * Query expansion → parallel search → rerank → scrape → AI answer with citations.
+   * Requires GEMINI_API_KEY (free tier) or configured LLM.
+   * @param {string} query - Search query
+   * @param {object} opts - { scrapeTop, expand, rerank }
+   * @returns {Promise<{answer, sources[], queries[], cached}>}
+   */
+  async deepSearch(query, opts = {}) {
+    return this.searchEngine.deepSearch(query, opts)
+  }
+
+  /**
    * Browse a URL with stealth and optional auth.
    * @param {string} url - URL to browse
    * @param {object} opts - { auth, screenshot, extract, stealth }

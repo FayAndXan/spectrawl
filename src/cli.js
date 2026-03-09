@@ -18,6 +18,8 @@ async function main() {
       return status()
     case 'serve':
       return serve()
+    case 'mcp':
+      return mcp()
     case 'version':
       console.log('spectrawl v0.1.0')
       return
@@ -101,10 +103,15 @@ async function status() {
 }
 
 async function serve() {
-  const port = getFlag('--port') || DEFAULTS.port
-  // TODO: implement HTTP + MCP server
-  console.log(`Spectrawl server starting on port ${port}...`)
-  console.log('HTTP + MCP server not yet implemented.')
+  // Start the HTTP server
+  require('./server')
+}
+
+async function mcp() {
+  // Start as MCP server (stdio transport)
+  const { MCPServer } = require('./mcp')
+  const server = new MCPServer()
+  server.start()
 }
 
 function help() {
@@ -115,7 +122,8 @@ Commands:
   init                     Create spectrawl.json config
   search "query"           Search the web
   status                   Check auth health for all accounts
-  serve [--port N]         Start HTTP + MCP server
+  serve [--port N]         Start HTTP server
+  mcp                      Start MCP server (stdio)
   version                  Show version
 
 Examples:
@@ -123,6 +131,7 @@ Examples:
   spectrawl search "best dental clinics in seoul"
   spectrawl status
   spectrawl serve --port 3900
+  spectrawl mcp
 `)
 }
 

@@ -3,29 +3,22 @@ const { URL } = require('url')
 
 /**
  * DuckDuckGo search — free, unlimited, no API key needed.
- * Uses the JSON API endpoint (api.duckduckgo.com).
- * Note: DDG Lite blocks datacenter IPs with CAPTCHAs.
- * The JSON API is more permissive but returns instant answers, not full web results.
- * For full results, we use the HTML endpoint with retries.
+ * Uses JSON API + HTML fallback. Filters ads automatically.
  */
 async function ddgSearch(query, config = {}) {
   const maxResults = config.maxResults || 10
   
-  // Strategy 1: Try the JSON API (instant answers)
+  // Strategy 1: JSON API (instant answers)
   try {
     const results = await ddgJsonApi(query, maxResults)
     if (results.length > 0) return results
-  } catch (e) {
-    // Fall through
-  }
+  } catch (e) { /* fall through */ }
 
-  // Strategy 2: Try HTML search via different endpoint
+  // Strategy 2: HTML search
   try {
     const results = await ddgHtmlSearch(query, maxResults)
     if (results.length > 0) return results
-  } catch (e) {
-    // Fall through
-  }
+  } catch (e) { /* fall through */ }
 
   return []
 }
@@ -36,7 +29,6 @@ async function ddgJsonApi(query, maxResults) {
   
   const results = []
 
-  // Abstract (top result)
   if (data.AbstractURL && data.Abstract) {
     results.push({
       url: data.AbstractURL,
@@ -46,7 +38,6 @@ async function ddgJsonApi(query, maxResults) {
     })
   }
 
-  // Related topics
   if (data.RelatedTopics) {
     for (const topic of data.RelatedTopics) {
       if (results.length >= maxResults) break
@@ -58,7 +49,6 @@ async function ddgJsonApi(query, maxResults) {
           engine: 'ddg'
         })
       }
-      // Subtopics
       if (topic.Topics) {
         for (const sub of topic.Topics) {
           if (results.length >= maxResults) break
@@ -75,7 +65,6 @@ async function ddgJsonApi(query, maxResults) {
     }
   }
 
-  // Results section
   if (data.Results) {
     for (const r of data.Results) {
       if (results.length >= maxResults) break
@@ -94,20 +83,21 @@ async function ddgJsonApi(query, maxResults) {
 }
 
 async function ddgHtmlSearch(query, maxResults) {
-  // Use the HTML endpoint with a more browser-like request
   const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`
   const html = await fetchHtml(url)
   
   const results = []
   
-  // DDG HTML results use class "result__a" for links and "result__snippet" for snippets
   const resultRegex = /<a[^>]+class="result__a"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/g
   const snippetRegex = /<a[^>]+class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g
 
   const links = []
   let match
   while ((match = resultRegex.exec(html)) !== null) {
-    links.push({ url: decodeUddg(match[1]), title: stripHtml(match[2]) })
+    const url = decodeUddg(match[1])
+    // Filter ads — DDG ads go through duckduckgo.com/y.js
+    if (isAd(url)) continue
+    links.push({ url, title: stripHtml(match[2]) })
   }
 
   const snippets = []
@@ -127,8 +117,22 @@ async function ddgHtmlSearch(query, maxResults) {
   return results
 }
 
+/**
+ * Filter out DDG ads.
+ */
+function isAd(url) {
+  if (!url) return true
+  if (url.includes('duckduckgo.com/y.js')) return true
+  if (url.includes('ad_provider=')) return true
+  if (url.includes('ad_domain=')) return true
+  if (url.startsWith('//duckduckgo.com/l/?')) {
+    // This is a redirect — might be organic
+    return false
+  }
+  return false
+}
+
 function decodeUddg(url) {
-  // DDG wraps URLs in //duckduckgo.com/l/?uddg=<encoded_url>
   if (url.includes('uddg=')) {
     const match = url.match(/uddg=([^&]+)/)
     if (match) return decodeURIComponent(match[1])

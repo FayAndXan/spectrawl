@@ -3,7 +3,17 @@
  * Delegates to platform-specific adapters.
  */
 
-const adapters = {}
+const { XAdapter } = require('./adapters/x')
+const { RedditAdapter } = require('./adapters/reddit')
+const { DevtoAdapter } = require('./adapters/devto')
+
+const adapters = {
+  x: new XAdapter(),
+  twitter: new XAdapter(),
+  reddit: new RedditAdapter(),
+  devto: new DevtoAdapter(),
+  'dev.to': new DevtoAdapter()
+}
 
 class ActEngine {
   constructor(config, auth, browse) {

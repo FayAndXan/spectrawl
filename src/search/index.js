@@ -2,6 +2,7 @@ const { ddgSearch } = require('./engines/ddg')
 const { braveSearch } = require('./engines/brave')
 const { serperSearch } = require('./engines/serper')
 const { scrapeUrls } = require('./scraper')
+const { Summarizer } = require('./summarizer')
 
 const ENGINES = {
   ddg: ddgSearch,
@@ -15,6 +16,7 @@ class SearchEngine {
     this.cache = cache
     this.cascade = config.cascade || ['ddg', 'brave', 'serper']
     this.scrapeTop = config.scrapeTop || 3
+    this.summarizer = config.llm ? new Summarizer(config.llm) : null
   }
 
   /**
@@ -75,9 +77,8 @@ class SearchEngine {
   }
 
   async _summarize(query, results) {
-    // TODO: implement LLM summarization
-    // Will support: minimax, openai, anthropic, ollama
-    return null
+    if (!this.summarizer) return null
+    return this.summarizer.summarize(query, results)
   }
 }
 

@@ -4,6 +4,7 @@ const { serperSearch } = require('./engines/serper')
 const { searxngSearch } = require('./engines/searxng')
 const { googleCseSearch } = require('./engines/google-cse')
 const { jinaSearch } = require('./engines/jina')
+const { geminiGroundedSearch } = require('./engines/gemini-grounded')
 const { scrapeUrls } = require('./scraper')
 const { Summarizer } = require('./summarizer')
 const { Reranker } = require('./reranker')
@@ -15,7 +16,9 @@ const ENGINES = {
   brave: braveSearch,
   serper: serperSearch,
   'google-cse': googleCseSearch,
-  jina: jinaSearch
+  jina: jinaSearch,
+  'gemini-grounded': geminiGroundedSearch,
+  gemini: geminiGroundedSearch
 }
 
 class SearchEngine {
@@ -109,9 +112,10 @@ class SearchEngine {
     const cached = this.cache?.get('search', cacheKey)
     if (cached) return { ...cached, cached: true }
 
-    // Step 1: Query expansion
+    // Step 1: Query expansion (skip if using Gemini grounded — it searches Google natively)
     let queries = [query]
-    if (this.expander && opts.expand !== false) {
+    const usesGrounded = this.cascade.includes('gemini-grounded') || this.cascade.includes('gemini')
+    if (this.expander && opts.expand !== false && !usesGrounded) {
       queries = await this.expander.expand(query)
     }
 

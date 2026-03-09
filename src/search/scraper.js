@@ -16,17 +16,20 @@ async function scrapeUrls(urls, opts = {}) {
   const concurrent = opts.concurrent || 3
   const engine = opts.engine || 'auto' // 'jina', 'readability', 'auto'
 
-  for (let i = 0; i < urls.length; i += concurrent) {
-    const batch = urls.slice(i, i + concurrent)
-    const promises = batch.map(url => scrapeUrl(url, { timeout, engine }).catch(() => null))
-    const batchResults = await Promise.all(promises)
-    
-    batch.forEach((url, idx) => {
-      if (batchResults[idx]) {
-        results[url] = batchResults[idx]
-      }
-    })
-  }
+  // All URLs in parallel (with per-URL timeout)
+  const promises = urls.map(url => {
+    const p = scrapeUrl(url, { timeout, engine }).catch(() => null)
+    // Hard timeout per URL
+    const timer = new Promise(resolve => setTimeout(() => resolve(null), timeout + 1000))
+    return Promise.race([p, timer])
+  })
+  const allResults = await Promise.all(promises)
+  
+  urls.forEach((url, idx) => {
+    if (allResults[idx]) {
+      results[url] = allResults[idx]
+    }
+  })
 
   return results
 }

@@ -1,7 +1,7 @@
 {
   "name": "spectrawl",
-  "version": "0.2.0",
-  "description": "The unified web layer for AI agents. Search, browse, authenticate, act — one tool, self-hosted, free.",
+  "version": "0.2.1",
+  "description": "The unified web layer for AI agents. Search (6 engines), stealth browse (Camoufox + Playwright), auth (cookies, multi-account), act (24 adapters, 30+ platforms), proxy rotation. Self-hosted, free.",
   "main": "src/index.js",
   "types": "index.d.ts",
   "bin": {

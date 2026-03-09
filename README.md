@@ -19,7 +19,14 @@ npm install spectrawl
 
 **Auth** — Persistent cookie storage (SQLite), multi-account management, automatic cookie refresh, expiry alerts.
 
-**Act** — Post to X, Reddit, Dev.to, Hashnode, LinkedIn, IndieHackers. Rate limiting, content dedup, dead letter queue for retries.
+**Act** — 24 platform adapters covering 30+ sites:
+- **Content platforms:** X, Reddit, LinkedIn, Dev.to, Hashnode, IndieHackers, Medium, Hacker News, Quora
+- **Developer:** GitHub (repos, issues, releases), HuggingFace (models, datasets), Discord (bot + webhooks)
+- **Launch/SEO:** Product Hunt, BetaList, AlternativeTo, SaaSHub, DevHunt, AppSumo
+- **Directories:** Generic adapter for MicroLaunch, Uneed, Peerlist, Fazier, BetaPage, LaunchingNext, StartupStash, SideProjectors, TAIFT, Futurepedia, Crunchbase, G2, StackShare, YouTube
+- Rate limiting, content dedup, dead letter queue for retries.
+
+**Proxy** — Rotating proxy server. One endpoint (`localhost:8080`) for all your tools. Round-robin, random, or least-used strategies. Health checking with auto-failover.
 
 ## Quick Start
 
@@ -123,6 +130,19 @@ Configure the cascade in `spectrawl.json`:
 | Hashnode | GraphQL API | post |
 | LinkedIn | Cookie API (Voyager) | post |
 | IndieHackers | Browser automation | post, comment, upvote |
+| Medium | REST API | post (markdown) |
+| GitHub | REST v3 | repo, file, issue, release |
+| Discord | Bot API + webhooks | send, thread |
+| Product Hunt | GraphQL v2 | launch, comment, upvote |
+| Hacker News | Cookie/form POST | submit, comment, upvote |
+| YouTube | Data API v3 | comment, playlist, update |
+| Quora | Browser automation | answer, question |
+| HuggingFace | Hub API | repo, model card, upload |
+| BetaList | REST API | submit |
+| AlternativeTo | Browser automation | submit |
+| SaaSHub | Browser automation | submit |
+| DevHunt | Browser automation | submit |
+| **30+ Directories** | Generic adapter | submit (MicroLaunch, Uneed, TAIFT, Futurepedia, Crunchbase, G2, etc.) |
 
 ## Configuration
 
@@ -141,10 +161,11 @@ Configure the cascade in `spectrawl.json`:
     "scrapeTtl": 24
   },
   "proxy": {
-    "host": "proxy.example.com",
-    "port": "8080",
-    "username": "user",
-    "password": "pass"
+    "localPort": 8080,
+    "strategy": "round-robin",
+    "upstreams": [
+      { "url": "http://user:pass@proxy1.example.com:8080" }
+    ]
   },
   "camoufox": {
     "url": "http://localhost:9869"

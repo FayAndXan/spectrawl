@@ -241,6 +241,32 @@ class BrowseEngine {
     return browser.newContext(contextOpts)
   }
 
+  /**
+   * Get a raw Playwright page for direct interaction.
+   * Used by platform adapters that need browser automation (e.g., IH).
+   * Caller is responsible for closing the page and context.
+   * 
+   * @param {object} opts - { _cookies, url }
+   * @returns {{ page, context, engine }}
+   */
+  async getPage(opts = {}) {
+    const browser = await this._getBrowser()
+    const context = await this._createContext(browser, opts)
+
+    if (opts._cookies) {
+      await context.addCookies(opts._cookies)
+    }
+
+    const page = await context.newPage()
+
+    if (opts.url) {
+      await page.goto(opts.url, { waitUntil: 'domcontentloaded', timeout: 30000 })
+      await page.waitForTimeout(800 + Math.random() * 1500)
+    }
+
+    return { page, context, engine: this._engine }
+  }
+
   async close() {
     if (this.browser) {
       await this.browser.close()

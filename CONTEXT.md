@@ -23,9 +23,11 @@ Node.js 20+, Playwright, Camoufox (optional), SQLite (better-sqlite3)
 - **Form filler:** contentEditable, React, shadow DOM
 
 ## What's NOT Built
-- playwright-extra stealth plugin (so npm install works standalone without Camoufox)
 - IH actual browser automation (stub — no API exists)
-- End-to-end tests with real accounts
+- Tests
+- README
+- npm publish
+- End-to-end testing with live accounts
 
 ## Relationship to xanOS
 Open-source infra that xanOS uses internally. Distribution funnel: Spectrawl users discover xanOS.

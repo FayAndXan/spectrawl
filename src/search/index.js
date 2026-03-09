@@ -30,6 +30,10 @@ class SearchEngine {
    * Tries free/unlimited engines first, escalates to quota-limited ones if needed.
    */
   async search(query, opts = {}) {
+    if (!query || !query.trim()) {
+      throw new Error('Search query is required')
+    }
+
     // Check cache first
     const cacheKey = `${query}:${JSON.stringify(opts)}`
     const cached = this.cache?.get('search', cacheKey)

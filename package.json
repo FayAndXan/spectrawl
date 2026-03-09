@@ -3,13 +3,20 @@
   "version": "0.1.0",
   "description": "The unified web layer for AI agents. Search, browse, authenticate, act — one tool, self-hosted, free.",
   "main": "src/index.js",
+  "types": "index.d.ts",
   "bin": {
     "spectrawl": "./src/cli.js"
   },
+  "files": [
+    "src/",
+    "index.d.ts",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "dev": "node src/server.js",
     "start": "node src/server.js",
-    "test": "node --test test/"
+    "test": "node --test test/*.test.js"
   },
   "keywords": [
     "ai-agent",
@@ -19,13 +26,20 @@
     "mcp",
     "stealth-browser",
     "cookie-management",
-    "tavily-alternative"
+    "tavily-alternative",
+    "anti-detect",
+    "camoufox",
+    "playwright"
   ],
   "author": "FayAndXan",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/FayAndXan/spectrawl"
+  },
+  "homepage": "https://github.com/FayAndXan/spectrawl#readme",
+  "bugs": {
+    "url": "https://github.com/FayAndXan/spectrawl/issues"
   },
   "engines": {
     "node": ">=20.0.0"

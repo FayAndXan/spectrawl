@@ -20,8 +20,15 @@
 - CLI: init, search, status, serve, mcp
 - Config: spectrawl.json
 
+## Session 3 Decisions (16:03-16:22 UTC)
+- **Three-tier stealth model** — auto-detect best browser, no config needed
+- **Camoufox as binary download, not dependency** — same model as Playwright downloading Chromium
+- **Don't fork Firefox** — use Camoufox's prebuilt binaries (Apache 2.0). Hard part already done.
+- **Fay correction: "why did you say no"** — I was wrong to dismiss forking/bundling Camoufox. The binary download model was obvious.
+
 ## Next Steps
-- Bundle playwright-extra stealth plugin
 - IH browser automation
+- Tests
+- README
 - npm publish
-- Real-world testing
+- End-to-end testing with live accounts

@@ -33,6 +33,13 @@ class SearchEngine {
     this.cascade = config.cascade || ['ddg', 'brave', 'serper']
     this.scrapeTop = config.scrapeTop || 5
     this.summarizer = config.llm ? new Summarizer(config.llm) : null
+    this.groundedModel =
+      config?.llm?.model ||
+      config?.['gemini-grounded']?.model ||
+      config?.gemini?.model ||
+      process.env.GEMINI_GROUNDED_MODEL ||
+      process.env.GEMINI_MODEL ||
+      'gemini-2.5-flash'
     
     // Gemini-powered features (free tier)
     const geminiKey = config.geminiKey || process.env.GEMINI_API_KEY
@@ -71,7 +78,8 @@ class SearchEngine {
       if (!engine) continue
 
       try {
-        const engineResults = await engine(query, this.config[engineName] || {})
+        const engineConfig = this._engineConfig(engineName)
+        const engineResults = await engine(query, engineConfig)
         results = dedupeResults([...results, ...engineResults])
         
         if (results.length >= minResults) break
@@ -241,6 +249,15 @@ class SearchEngine {
     return response
   }
 
+  _engineConfig(engineName) {
+    const base = { ...(this.config[engineName] || {}) }
+    if (engineName === 'gemini-grounded' || engineName === 'gemini') {
+      base.model = base.model || this.groundedModel
+      base.apiKey = base.apiKey || this.config.geminiKey || process.env.GEMINI_API_KEY
+    }
+    return base
+  }
+
   /**
    * Raw search without reranking or summarization.
    * Used internally by deepSearch for parallel query variants.
@@ -255,7 +272,8 @@ class SearchEngine {
       if (!engine) continue
 
       try {
-        const engineResults = await engine(query, this.config[engineName] || {})
+        const engineConfig = this._engineConfig(engineName)
+        const engineResults = await engine(query, engineConfig)
         results = dedupeResults([...results, ...engineResults])
         if (results.length >= minResults) break
       } catch (err) {

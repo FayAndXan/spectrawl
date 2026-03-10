@@ -63,15 +63,16 @@ Different tools for different needs.
 
 ## Search
 
-Default cascade: **Gemini Grounded → Brave → DDG**
+Default cascade: **Gemini Grounded → Tavily → Brave**
 
 Gemini Grounded Search gives you Google-quality results through the Gemini API. Free tier: 5,000 grounded queries/month.
 
 | Engine | Free Tier | Key Required | Default |
 |--------|-----------|-------------|---------|
 | **Gemini Grounded** | 5,000/month | `GEMINI_API_KEY` | ✅ Primary |
-| Brave | 2,000/month | `BRAVE_API_KEY` | ✅ Fallback |
-| DuckDuckGo | Unlimited | None | ✅ Last resort |
+| Tavily | 1,000/month | `TAVILY_API_KEY` | ✅ 1st fallback |
+| Brave | 2,000/month | `BRAVE_API_KEY` | ✅ 2nd fallback |
+| DuckDuckGo | Unlimited | None | Available |
 | Bing | Unlimited | None | Available |
 | Serper | 2,500 trial | `SERPER_API_KEY` | Available |
 | Google CSE | 100/day | `GOOGLE_CSE_KEY` | Available |
@@ -216,7 +217,7 @@ npx spectrawl install-stealth   # download Camoufox browser
 ```json
 {
   "search": {
-    "cascade": ["gemini-grounded", "brave", "ddg"],
+    "cascade": ["gemini-grounded", "tavily", "brave"],
     "scrapeTop": 5
   },
   "cache": {

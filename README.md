@@ -2,7 +2,7 @@
 
 The unified web layer for AI agents. Search, browse, authenticate, and act on platforms — one tool, self-hosted, free.
 
-**Free Tavily alternative** with Google-quality results via Gemini Grounded Search.
+**5,000 free searches/month** with Google-quality results via Gemini Grounded Search. Better answers than Tavily. Self-hosted.
 
 ## What It Does
 
@@ -57,17 +57,22 @@ export GEMINI_API_KEY=your-free-key  # Get one at aistudio.google.com
 const { Spectrawl } = require('spectrawl')
 const web = new Spectrawl()
 
-// Deep search — like Tavily but free, with better answers
+// Deep search — returns sources for your agent/LLM to process
 const result = await web.deepSearch('how to build an MCP server in Node.js')
-console.log(result.answer)    // AI-generated answer with [1] [2] citations
 console.log(result.sources)   // [{ title, url, content, score }]
+
+// With AI summary (opt-in — uses extra Gemini call)
+const withAnswer = await web.deepSearch('query', { summarize: true })
+console.log(withAnswer.answer)  // AI-generated answer with [1] [2] citations
 
 // Fast mode — snippets only, skip scraping
 const fast = await web.deepSearch('query', { mode: 'fast' })
 
-// Basic search — raw results, no AI
+// Basic search — raw results
 const basic = await web.search('query')
 ```
+
+> **Why no summary by default?** Your agent already has an LLM. If we summarize AND your agent summarizes, you're paying two LLMs for one answer. We return rich sources — your agent does the rest.
 
 ## vs Tavily
 
@@ -77,7 +82,7 @@ const basic = await web.search('query')
 | Answer quality | Generic (3 items) | **Detailed** (12+ items) ✅ |
 | Inline citations | ❌ | **[1] [2] [3]** ✅ |
 | Results per query | 10 | **12-19** ✅ |
-| Cost | $0.01/query | **Free** ✅ |
+| Cost | $0.01/query | **Free** (5K/mo) ✅ |
 | Self-hosted | No | **Yes** ✅ |
 | Source ranking | No | **Domain trust scoring** ✅ |
 | Stealth scraping | No | **Yes** ✅ |
@@ -110,7 +115,7 @@ Query → Gemini Grounded + DDG (parallel)
   → Merge & deduplicate (12-19 results)
   → Source quality ranking (boost GitHub/SO/Reddit, penalize SEO spam)
   → Parallel scraping (Jina → readability → Playwright fallback)
-  → AI summarization with [1] [2] citations (gemini-2.5-flash)
+  → Returns sources to your agent (AI summary opt-in with summarize: true)
 ```
 
 ### What you get without any keys

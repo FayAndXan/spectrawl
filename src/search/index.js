@@ -188,16 +188,18 @@ class SearchEngine {
       }
     }
 
-    // Step 6: Summarize with citations
+    // Step 6: Summarize with citations (opt-in — most agents have their own LLM)
     let answer = null
-    const summarizer = this.summarizer || (this.reranker ? new Summarizer({
-      provider: 'gemini',
-      model: 'gemini-2.5-flash',
-      apiKey: process.env.GEMINI_API_KEY
-    }) : null)
+    if (opts.summarize === true) {
+      const summarizer = this.summarizer || (process.env.GEMINI_API_KEY ? new Summarizer({
+        provider: 'gemini',
+        model: 'gemini-2.5-flash',
+        apiKey: process.env.GEMINI_API_KEY
+      }) : null)
 
-    if (summarizer) {
-      answer = await summarizer.summarize(query, results)
+      if (summarizer) {
+        answer = await summarizer.summarize(query, results)
+      }
     }
 
     const response = {

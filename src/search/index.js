@@ -6,6 +6,7 @@ const { googleCseSearch } = require('./engines/google-cse')
 const { jinaSearch } = require('./engines/jina')
 const { bingSearch } = require('./engines/bing')
 const { geminiGroundedSearch } = require('./engines/gemini-grounded')
+const { tavilySearch } = require('./engines/tavily')
 const { scrapeUrls } = require('./scraper')
 const { Summarizer } = require('./summarizer')
 const { Reranker } = require('./reranker')
@@ -21,7 +22,8 @@ const ENGINES = {
   jina: jinaSearch,
   'gemini-grounded': geminiGroundedSearch,
   gemini: geminiGroundedSearch,
-  bing: bingSearch
+  bing: bingSearch,
+  tavily: tavilySearch
 }
 
 class SearchEngine {
@@ -133,23 +135,31 @@ class SearchEngine {
     }
 
     // Step 2: Search across all query variants
-    // When using Gemini Grounded, also run DDG in parallel for volume
+    // When using Gemini Grounded, conditionally add DDG for volume
     const resultSets = []
     if (usesGrounded) {
-      // Parallel with staggered DDG start (DDG rate-limits concurrent requests from same IP)
       const delay = ms => new Promise(r => setTimeout(r, ms))
-      const [groundedResults, ddgResults] = await Promise.all([
-        this._rawSearch(query, { ...opts, engines: ['gemini-grounded', 'gemini'] }).catch(e => { console.warn('Gemini grounded failed:', e.message); return [] }),
-        delay(500).then(() => this._rawSearch(query, { ...opts, engines: ['ddg'] })).catch(e => { console.warn('DDG failed:', e.message); return [] })
-      ])
-      if (process.env.SPECTRAWL_DEBUG) {
-        console.log('[deepSearch] Gemini results:', groundedResults.length, '| DDG results:', ddgResults.length)
-      }
-      resultSets.push(groundedResults, ddgResults)
       
-      // If primary failed, retry with a different approach
-      if (groundedResults.length === 0 && ddgResults.length === 0) {
-        await delay(1000)
+      // Always run Gemini first
+      const groundedResults = await this._rawSearch(query, { ...opts, engines: ['gemini-grounded', 'gemini'] })
+        .catch(e => { console.warn('Gemini grounded failed:', e.message); return [] })
+      
+      resultSets.push(groundedResults)
+
+      // Only run DDG if Gemini returned fewer than 5 results (saves 2-3s)
+      if (groundedResults.length < 5) {
+        const ddgResults = await this._rawSearch(query, { ...opts, engines: ['ddg'] })
+          .catch(e => { console.warn('DDG failed:', e.message); return [] })
+        resultSets.push(ddgResults)
+      }
+
+      if (process.env.SPECTRAWL_DEBUG) {
+        console.log('[deepSearch] Gemini results:', groundedResults.length, '| DDG skipped:', groundedResults.length >= 5)
+      }
+      
+      // If primary failed, retry with full cascade (including tavily if configured)
+      if (groundedResults.length === 0) {
+        await delay(500)
         const retry = await this._rawSearch(query, { ...opts, engines: this.cascade }).catch(() => [])
         resultSets.push(retry)
       }
@@ -181,11 +191,13 @@ class SearchEngine {
     // Step 4b: Source quality ranking — boost trusted domains, penalize SEO spam
     results = this.sourceRanker.rank(results)
 
-    // Step 5: Parallel scrape top N for full content (skip in fast mode)
-    const scrapeCount = opts.mode === 'fast' ? 0 : (opts.scrapeTop ?? this.scrapeTop ?? 5)
+    // Step 5: Parallel scrape top N for full content
+    // Skip in fast/snippets mode — just use search snippets (saves 3-8s)
+    const skipScrape = opts.mode === 'fast' || opts.mode === 'snippets'
+    const scrapeCount = skipScrape ? 0 : (opts.scrapeTop ?? this.scrapeTop ?? 5)
     if (scrapeCount > 0 && results.length > 0) {
       const urls = results.slice(0, scrapeCount).map(r => r.url)
-      const scraped = await scrapeUrls(urls)
+      const scraped = await scrapeUrls(urls, { timeout: opts.scrapeTimeout || 3000 })
       
       for (const result of results) {
         const scrapedContent = scraped[result.url]

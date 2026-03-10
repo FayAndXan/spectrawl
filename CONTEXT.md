@@ -1,132 +1,99 @@
 # Spectrawl — Project Context
 
 ## What
-Self-hosted Node.js package — unified web layer for AI agents. One API for search, browse, auth, and platform actions. Free Tavily alternative. Open source, MIT, npm installable.
+Self-hosted Node.js package — unified web layer for AI agents. One API for search, browse, auth, and platform actions. 5,000 free searches/month via Gemini Grounded Search. Open source, MIT, npm installable.
 
-## Status: v0.3.9 — All core components validated
-Google-quality search via Gemini Grounded, beats Tavily on result volume, free. All core components tested end-to-end.
+## Status: v0.3.13 — Sources-only default, honest pricing
+Answer quality beats Tavily. Summarizer opt-in (not default). 7 adapters live tested.
 
 ## Repo
-**github.com/FayAndXan/spectrawl** (public, 25+ commits)
+**github.com/FayAndXan/spectrawl** (public, 30+ commits)
 
 ## Published
-- npm: `spectrawl@0.3.9` (account: fay_)
-- npm token: automation type (2FA enabled)
+- npm: `spectrawl@0.3.13` (account: fay_)
 
 ## Infrastructure
-- **Spectrawl systemd service**: `spectrawl.service`, localhost:3900, auto-restart, runs permanently
-- **GITHUB_TOKEN in gateway env**: all agents can use it (Fay approved)
-- **Credential architecture**: Spectrawl HTTP service holds credentials. Other agents (Dante, Grokit, etc.) call `localhost:3900/act` — never see raw tokens.
+- **Spectrawl systemd service**: `spectrawl.service`, localhost:3900, auto-restart
+- **GITHUB_TOKEN in gateway env**: all agents can use it
+- **Credential architecture**: HTTP service holds credentials. Other agents call `localhost:3900/act`.
+
+## Pricing (honest)
+| Volume | Spectrawl | Tavily |
+|--------|-----------|--------|
+| <5K/month | **Free** | $40 |
+| 10K/month | $80 | $90 |
+| 50K/month | $720 | **$490** |
+
+- Grounding: $0 under 5K/mo, $14/1K after
+- Summarizer (opt-in): ~$0.002/query extra
+- Crossover: ~8K queries/month
+
+## Key Design Decisions
+- **Summarizer OFF by default** — agents have their own LLM. Double-summarizing = double cost. `{ summarize: true }` opt-in.
+- **One-time key warning** — when no GEMINI_API_KEY, prints helpful message with link
+- **No truly free search at scale** — every API costs something. Gemini free tier is the best deal.
+- **Tavily as optional fallback** — decided, not yet built
 
 ## What's Built & Validated
 
-### Search (8 engines) ✅
-- **Gemini Grounded Search** (PRIMARY) — Google results via Gemini API, free 5000/month
-- Brave Search API — 2,000/month free
-- DuckDuckGo — free, unreliable from datacenter IPs
-- Bing — scraper, also blocked from datacenter
-- Serper.dev — 2,500 one-time trial (NOT monthly)
-- Google CSE — 100/day free
-- Jina Reader — search + extraction
-- SearXNG — self-hosted, 70+ engines
+### Search ✅
+- Gemini Grounded (primary), Brave, DDG, Bing, Serper, Google CSE, Jina, SearXNG
+- Deep search: parallel Gemini+DDG → dedup → source ranking → scraping → sources returned
+- Source quality ranker: boost GitHub/SO/HN, penalize SEO farms
 
-### Deep Search Pipeline ✅
-Query → Gemini Grounded + DDG (parallel, 500ms stagger)
-→ Merge & deduplicate (12-16 results)
-→ Source quality ranking (boost GitHub/SO/HN, penalize SEO spam)
-→ Parallel scraping (Jina → readability → Playwright browser fallback)
-→ AI summarization with [1] [2] citations (gemini-2.5-flash)
+### Answer Quality (verified)
+- Spectrawl: 19 sources, 12 items named, inline [1][2][3] citations
+- Tavily: 10 sources, 3 items named, no citations
+- Speed: 12-17s vs Tavily's 2s (Gemini API latency)
 
-### Model Split
-- `gemini-2.0-flash` — grounded search (only model with structured groundingChunks)
-- `gemini-2.5-flash` — summarizer, reranker, query expander (better reasoning)
+### HTTP Server ✅
+- All 5 endpoints tested: /health, /status, /search, /browse, /act
 
-### Performance vs Tavily
-| | Tavily | Spectrawl |
-|---|---|---|
-| Speed (fast) | ~2s | ~6-9s |
-| Quality | Google index | Google via Gemini ✅ |
-| Results | 10 | 12-16 ✅ |
-| Citations | ✅ | ✅ |
-| Cost | $0.01/query | Free ✅ |
-| Stealth | ❌ | ✅ |
-| Auth+posting | ❌ | 24 adapters ✅ |
-| Source ranking | ❌ | ✅ |
-| Cached repeat | ❌ | <1ms ✅ |
-
-### HTTP Server ✅ (all 5 endpoints tested)
-- `GET /health` — server health
-- `GET /status` — auth account status
-- `POST /search` — web search (returned 13 results)
-- `POST /browse` — stealth browse (Playwright)
-- `POST /act` — platform actions (graceful auth errors)
-
-### MCP Server ✅ (tested with JSON-RPC)
-- Initialize, tool listing (5 tools), web_search execution — all working
+### MCP Server ✅
+- Initialize + tool listing (5 tools) + web_search — all working
 
 ### Auth Manager ✅
-- SQLite cookie store: add, getCookies, updateCookies, getStatus, remove
-- Cookie refresher: fires cookie_expiring + cookie_expired events
-- Event hooks working
+- SQLite cookie store, expiry detection, cookie refresher events
+
+### Platform Adapters — 7 live tested
+| Platform | Status | Account |
+|----------|--------|---------|
+| GitHub | ✅ LIVE | FeyDeFi |
+| Reddit | ✅ LIVE | EntrepreneurSharp538 |
+| Dev.to | ✅ LIVE | fay_ |
+| HuggingFace | ✅ LIVE | fayface |
+| X | ✅ reads, ❌ writes (datacenter blocked) | @fayandxan |
+| IH | stored cookies | akmanfuoco33 |
+| 18 others | code exists, untested | need accounts |
 
 ### Rate Limiter + Dedup ✅
-- Rate limiting blocks after configured limit
-- Dedup blocks same content hash within 24h
+### Stealth Browse (Playwright) ✅
 
-### Browse (3-tier stealth) — Tier 1 ✅
-1. playwright-extra + stealth plugin (default) ✅ tested
-2. Camoufox binary download (`npx spectrawl install-stealth`) — installer logic works, binary not downloaded
-3. Remote Camoufox service — untested
-
-### Platform Adapters (24) — 3 live tested
-- **GitHub** ✅ LIVE: created issue #1 → closed it
-- **Reddit** ✅ LIVE: posted to u/EntrepreneurSharp538 → deleted
-- **X** ✅ reads work, writes blocked from datacenter (Error 226)
-- 18 untested (need accounts): Dev.to, Hashnode, LinkedIn, Medium, Discord, PH, HN, YouTube, Quora, HuggingFace, BetaList, AlternativeTo, SaaSHub, DevHunt, IH
-- Generic directory adapter: 14 sites
-
-### Summarizer ✅ (bug fixed)
-- **Bug found**: constructor defaulted to `gpt-4o-mini` for ALL providers — Gemini calls silently failed
-- **Fixed**: provider-specific defaults (gemini-2.5-flash, claude-3-5-haiku, etc.)
-- Tested: Gemini ✅, xAI ✅, MiniMax ❌ (key expired)
-
-## API Key Status (as of Mar 10)
-- Gemini (`AIzaSyDwZ5...`): ✅ working
-- MiniMax: ❌ invalid/expired
-- xAI: ❌ credits exhausted (429)
-- Reddit token_v2: expires 2026-03-10T16:48:51
-
-## Known Issues
-- Speed: 6-9s vs Tavily's 2s (Gemini API latency ~4s, unfixable)
-- DDG: CAPTCHA'd from datacenter IPs after 1-2 requests
-- Bing: same datacenter blocking as DDG
-- X writes blocked from datacenter IP (Error 226)
-- Browser automation adapters: selectors unvalidated
-
-## Accounts Fay Needs to Create
-- **Quick wins** (API key, 2 min): Dev.to, HuggingFace, Discord bot
+## Accounts Fay Still Needs
+- **Quick wins**: Discord bot
 - **Browser cookies**: LinkedIn, HN, Quora, AlternativeTo, SaaSHub, DevHunt
-- **OAuth flows**: Medium, Product Hunt, YouTube
+- **OAuth**: Medium, Product Hunt, YouTube
 
-## What's NOT Built
-- Proxy auto-wiring into browse engine
-- X posting via residential proxy
-- npm/PyPI publish adapters
+## API Key Status
+- Gemini (`AIzaSyDwZ5...`): ✅
+- MiniMax: ❌ expired
+- xAI: ❌ credits exhausted
+- Dev.to: ✅
+- HuggingFace: ✅
 
-## Relationship to xanOS
-Open-source infra that xanOS uses. XanLens audits → xanOS generates → Spectrawl publishes.
+## Next Steps
+1. Build Tavily as optional search engine in cascade
+2. Cut speed (16s → target <10s)
+3. Test remaining adapters as accounts come in
+4. Wire proxy into browse engine
 
 ## Key Files
-- `src/search/engines/gemini-grounded.js` — primary search engine
-- `src/search/index.js` — search engine + deepSearch
+- `src/search/index.js` — search engine, deepSearch (summarizer opt-in)
+- `src/search/engines/gemini-grounded.js` — primary search
+- `src/search/summarizer.js` — multi-provider, opt-in only
 - `src/search/source-ranker.js` — domain trust scoring
-- `src/search/summarizer.js` — multi-provider LLM answers (provider-specific defaults)
 - `src/search/scraper.js` — Jina + readability + Playwright fallback
-- `src/index.js` — main entry (accepts config objects now)
-- `src/config.js` — defaults (cascade: gemini-grounded → brave → ddg)
-- `src/act/adapters/*.js` — 24 platform adapters
 - `src/server.js` — HTTP server (port 3900)
 - `src/mcp.js` — MCP server (stdio)
-- `src/auth/index.js` — auth manager (SQLite)
-- `src/auth/refresh.js` — cookie refresher + event hooks
-- `src/act/rate-limiter.js` — rate limiting + dedup
+- `src/act/adapters/*.js` — 24 platform adapters
+- `src/auth/index.js` — SQLite auth manager

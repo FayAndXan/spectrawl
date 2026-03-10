@@ -65,10 +65,20 @@
 - **GitHub adapter uses `repo` as full path** — `FayAndXan/spectrawl` not separate owner/repo params
 - **Fay confirmed: GitHub token OK for all agents** — "I feel GitHub is fine every agent can have access"
 
+## Session 8 Decisions (02:17-04:18 UTC, Mar 10) — Pricing + Summarizer + Adapters
+- **Summarizer OFF by default** — agents have their own LLM, double-summarizing is waste. `{ summarize: true }` opt-in.
+- **Not free at scale** — 5K free grounded queries/month, then $14/1K. Tavily is $10/1K. We're cheaper below ~8K/month.
+- **Tavily as optional fallback** — after 5K Gemini quota, fall back to Tavily if user has key. Not yet built.
+- **No truly free search exists** — DDG unreliable, every API needs a key. Gemini key (free, no credit card) is minimum viable.
+- **One-time key warning** — stderr warning with link when no GEMINI_API_KEY set. Agents surface it to human.
+- **Dev.to + HuggingFace adapters verified** — both work through ActEngine chain
+- **Dev.to adapter bug** — needed User-Agent header, redirect handling
+- **Answer quality beats Tavily** — 12 items + citations vs 3 items + none. Verified with real queries.
+- **Fay: "don't claim free"** — README updated to "5,000 free searches/month"
+
 ## Next Steps
-- Fay creates accounts for untested adapters (Dev.to, HuggingFace, Discord bot first)
-- Live test adapters as accounts come in
+- Build Tavily as optional search engine in cascade
+- Cut speed (16s → target <10s)
+- Fay creates accounts for remaining adapters (Discord bot, LinkedIn, HN, etc.)
 - Wire proxy into browse engine
-- Test X posting through residential proxy
 - Browser-automation adapters need selector validation
-- Consider residential proxy for DDG reliability

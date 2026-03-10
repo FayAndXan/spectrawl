@@ -5,6 +5,7 @@ declare module 'spectrawl' {
       scrapeTop?: number
       geminiKey?: string
       'gemini-grounded'?: { apiKey?: string; model?: string }
+      tavily?: { apiKey?: string; searchDepth?: string; maxResults?: number }
       llm?: { provider: string; model?: string; apiKey?: string }
       sourceRanker?: {
         weights?: Record<string, number>
@@ -58,10 +59,12 @@ declare module 'spectrawl' {
   }
 
   interface DeepSearchOptions {
-    mode?: 'fast' | 'full'
+    mode?: 'fast' | 'snippets' | 'full'
     scrapeTop?: number
+    scrapeTimeout?: number
     expand?: boolean
     rerank?: boolean
+    summarize?: boolean
   }
 
   interface BrowseResult {

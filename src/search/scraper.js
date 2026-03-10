@@ -12,15 +12,15 @@ const { jinaExtract } = require('./engines/jina')
  */
 async function scrapeUrls(urls, opts = {}) {
   const results = {}
-  const timeout = opts.timeout || 10000
-  const concurrent = opts.concurrent || 3
+  const timeout = opts.timeout || 3000  // 3s hard cutoff per URL (was 10s)
+  const concurrent = opts.concurrent || 5
   const engine = opts.engine || 'auto' // 'jina', 'readability', 'auto'
 
   // All URLs in parallel (with per-URL timeout)
   const promises = urls.map(url => {
     const p = scrapeUrl(url, { timeout, engine }).catch(() => null)
-    // Hard timeout per URL
-    const timer = new Promise(resolve => setTimeout(() => resolve(null), timeout + 1000))
+    // Hard timeout per URL — kill slow sites fast
+    const timer = new Promise(resolve => setTimeout(() => resolve(null), timeout + 500))
     return Promise.race([p, timer])
   })
   const allResults = await Promise.all(promises)
@@ -35,7 +35,7 @@ async function scrapeUrls(urls, opts = {}) {
 }
 
 async function scrapeUrl(url, opts = {}) {
-  const { timeout = 10000, engine = 'auto', browse } = opts
+  const { timeout = 3000, engine = 'auto', browse } = opts
 
   // Try Jina first if available (better markdown output)
   if (engine === 'jina' || engine === 'auto') {

@@ -29,7 +29,7 @@ class SearchEngine {
     this.config = config
     this.cache = cache
     this.cascade = config.cascade || ['ddg', 'brave', 'serper']
-    this.scrapeTop = config.scrapeTop || 3
+    this.scrapeTop = config.scrapeTop || 5
     this.summarizer = config.llm ? new Summarizer(config.llm) : null
     
     // Gemini-powered features (free tier)

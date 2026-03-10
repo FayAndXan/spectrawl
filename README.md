@@ -12,6 +12,40 @@ AI agents need to interact with the web. That means searching, browsing pages, l
 npm install spectrawl
 ```
 
+## Real Output
+
+Here's actual output from Spectrawl vs Tavily on the same query:
+
+**Query:** `"best open source AI agent frameworks 2025"`
+
+### Spectrawl (free)
+```
+Time: 16.8s | Sources: 19
+
+Answer: The leading open-source AI agent frameworks for 2025 include AutoGen,
+CrewAI, LangChain, LangGraph, and Semantic Kernel [1, 2, 3]. AutoGen is
+recognized for enabling complex multi-agent conversations, while CrewAI
+focuses on orchestrating collaborative AI agents [1, 2]. LangChain and its
+component LangGraph provide robust tools for building sophisticated agent
+workflows and state management [1, 2, 3]. Semantic Kernel, developed by
+Microsoft, integrates large language models with conventional programming
+languages [1, 2, 3].
+
+Other prominent frameworks include LlamaIndex, Haystack, BabyAGI, AgentGPT,
+SuperAGI, MetaGPT, and Open Interpreter [1, 2].
+```
+**12 frameworks named, inline citations, 19 sources**
+
+### Tavily ($0.01/query)
+```
+Time: 2s | Sources: 10
+
+Answer: In 2025, LangGraph and Microsoft's AutoGen + Semantic Kernel are
+top open-source AI agent frameworks, favored for their robust orchestration
+and enterprise security features.
+```
+**3 frameworks named, no citations, 10 sources**
+
 ## Quick Start
 
 ```bash
@@ -23,31 +57,34 @@ export GEMINI_API_KEY=your-free-key  # Get one at aistudio.google.com
 const { Spectrawl } = require('spectrawl')
 const web = new Spectrawl()
 
-// Deep search — like Tavily but free
-const result = await web.deepSearch('best AI agent frameworks 2025')
-console.log(result.answer)    // AI-generated answer with citations
+// Deep search — like Tavily but free, with better answers
+const result = await web.deepSearch('how to build an MCP server in Node.js')
+console.log(result.answer)    // AI-generated answer with [1] [2] citations
 console.log(result.sources)   // [{ title, url, content, score }]
 
-// Fast mode — snippets only, ~6s
+// Fast mode — snippets only, skip scraping
 const fast = await web.deepSearch('query', { mode: 'fast' })
 
 // Basic search — raw results, no AI
 const basic = await web.search('query')
 ```
 
-### vs Tavily
+## vs Tavily
 
 | | Tavily | Spectrawl |
 |---|---|---|
-| Speed | ~2s | ~6-9s |
-| Search quality | Google index | Google via Gemini ✅ |
-| Results per query | 10 | 12-16 ✅ |
-| Citations | ✅ | ✅ |
+| Speed | ~2s ✅ | ~7-17s |
+| Answer quality | Generic (3 items) | **Detailed** (12+ items) ✅ |
+| Inline citations | ❌ | **[1] [2] [3]** ✅ |
+| Results per query | 10 | **12-19** ✅ |
 | Cost | $0.01/query | **Free** ✅ |
 | Self-hosted | No | **Yes** ✅ |
+| Source ranking | No | **Domain trust scoring** ✅ |
 | Stealth scraping | No | **Yes** ✅ |
 | Auth + posting | No | **24 adapters** ✅ |
 | Cached repeats | No | **<1ms** ✅ |
+
+Spectrawl wins on answer quality, result volume, features, and cost. Tavily wins on speed.
 
 ## Search
 
@@ -70,10 +107,10 @@ Gemini Grounded Search gives you Google-quality results through the Gemini API. 
 
 ```
 Query → Gemini Grounded + DDG (parallel)
-  → Merge & deduplicate (12-16 results)
+  → Merge & deduplicate (12-19 results)
   → Source quality ranking (boost GitHub/SO/Reddit, penalize SEO spam)
   → Parallel scraping (Jina → readability → Playwright fallback)
-  → AI summarization with [1] [2] citations
+  → AI summarization with [1] [2] citations (gemini-2.5-flash)
 ```
 
 ### What you get without any keys
@@ -92,56 +129,55 @@ Stealth browsing with anti-detection. Three tiers (auto-detected):
 const page = await web.browse('https://example.com')
 console.log(page.content)       // extracted text/markdown
 console.log(page.screenshot)    // PNG buffer (if requested)
-
-// With screenshot
-const page = await web.browse('https://example.com', { screenshot: true })
 ```
 
 Auto-fallback: if Jina and readability return too little content (<200 chars), Spectrawl renders the page with Playwright and extracts from the rendered DOM. Tavily can't do this — they fail on JS-heavy pages.
 
 ## Auth
 
-Persistent cookie storage (SQLite), multi-account management, automatic refresh.
+Persistent cookie storage (SQLite), multi-account management, automatic expiry detection.
 
 ```js
-// Store cookies
-await web.auth.setCookies('x', '@myhandle', cookies)
+// Add account
+await web.auth.add('x', { account: '@myhandle', method: 'cookie', cookies })
 
 // Check health
-const accounts = await web.status()
+const accounts = await web.auth.getStatus()
 // [{ platform: 'x', account: '@myhandle', status: 'valid', expiresAt: '...' }]
 ```
 
+Cookie refresh cron fires `cookie_expiring` and `cookie_expired` events before accounts go stale.
+
 ## Act — 24 Platform Adapters
 
-Post to 30+ platforms with one API:
+Post to 24+ platforms with one API:
 
 ```js
-await web.act('x', 'post', { text: 'Hello from Spectrawl', account: '@myhandle' })
+await web.act('github', 'create-issue', { repo: 'user/repo', title: 'Bug report', body: '...' })
 await web.act('reddit', 'post', { subreddit: 'node', title: '...', text: '...' })
-await web.act('github', 'create-repo', { name: 'my-repo', description: '...' })
+await web.act('devto', 'post', { title: '...', body: '...', tags: ['ai'] })
+await web.act('huggingface', 'create-repo', { name: 'my-model', type: 'model' })
 ```
+
+**Live tested:** GitHub ✅, Reddit ✅, Dev.to ✅, HuggingFace ✅, X (reads) ✅
 
 | Platform | Auth Method | Actions |
 |----------|-------------|---------|
-| X/Twitter | GraphQL Cookie + OAuth 1.0a | post |
-| Reddit | Cookie API (oauth.reddit.com) | post, comment |
-| Dev.to | REST API | post |
+| X/Twitter | Cookie + OAuth 1.0a | post |
+| Reddit | Cookie API | post, comment, delete |
+| Dev.to | REST API key | post, update |
 | Hashnode | GraphQL API | post |
 | LinkedIn | Cookie API (Voyager) | post |
-| IndieHackers | Browser automation | post, comment, upvote |
-| Medium | REST API | post (markdown) |
+| IndieHackers | Browser automation | post, comment |
+| Medium | REST API | post |
 | GitHub | REST v3 | repo, file, issue, release |
-| Discord | Bot API + webhooks | send, thread |
-| Product Hunt | GraphQL v2 | launch, comment, upvote |
-| Hacker News | Cookie/form POST | submit, comment, upvote |
-| YouTube | Data API v3 | comment, playlist |
-| Quora | Browser automation | answer, question |
+| Discord | Bot API | send, thread |
+| Product Hunt | GraphQL v2 | launch, comment |
+| Hacker News | Cookie API | submit, comment |
+| YouTube | Data API v3 | comment |
+| Quora | Browser automation | answer |
 | HuggingFace | Hub API | repo, model card, upload |
 | BetaList | REST API | submit |
-| AlternativeTo | Browser automation | submit |
-| SaaSHub | Browser automation | submit |
-| DevHunt | Browser automation | submit |
 | **14 Directories** | Generic adapter | submit |
 
 Built-in rate limiting, content dedup (MD5, 24h window), and dead letter queue for retries.
@@ -156,11 +192,9 @@ Spectrawl ranks results by domain trust — something Tavily doesn't do:
 
 ```js
 const web = new Spectrawl({
-  search: {
-    sourceRanker: {
-      boost: ['github.com', 'news.ycombinator.com'],
-      block: ['spamsite.com']
-    }
+  sourceRanker: {
+    boost: ['github.com', 'news.ycombinator.com'],
+    block: ['spamsite.com']
   }
 })
 ```
@@ -174,14 +208,14 @@ npx spectrawl serve --port 3900
 ```
 POST /search   { "query": "...", "summarize": true }
 POST /browse   { "url": "...", "screenshot": true }
-POST /act      { "platform": "x", "action": "post", "params": { ... } }
-GET  /status
-GET  /health
+POST /act      { "platform": "github", "action": "create-issue", ... }
+GET  /status   — auth account health
+GET  /health   — server health
 ```
 
 ## MCP Server
 
-Works with any MCP-compatible agent framework (Claude, OpenAI, etc.):
+Works with any MCP-compatible agent (Claude, Cursor, OpenClaw, LangChain):
 
 ```bash
 npx spectrawl mcp
@@ -208,18 +242,11 @@ npx spectrawl install-stealth   # download Camoufox browser
 {
   "search": {
     "cascade": ["gemini-grounded", "brave", "ddg"],
-    "scrapeTop": 3
+    "scrapeTop": 5
   },
   "cache": {
     "searchTtl": 3600,
     "scrapeTtl": 86400
-  },
-  "proxy": {
-    "localPort": 8080,
-    "strategy": "round-robin",
-    "upstreams": [
-      { "url": "http://user:pass@proxy.example.com:8080" }
-    ]
   },
   "rateLimit": {
     "x": { "postsPerHour": 3 },
@@ -231,14 +258,14 @@ npx spectrawl install-stealth   # download Camoufox browser
 ## Environment Variables
 
 ```
-GEMINI_API_KEY      Gemini API key (free — primary search + summarization)
-BRAVE_API_KEY       Brave Search API key (2,000 free/month)
-SERPER_API_KEY      Serper.dev API key
-GOOGLE_CSE_KEY      Google Custom Search API key
-GOOGLE_CSE_CX       Google Custom Search engine ID
-JINA_API_KEY        Jina Reader API key (optional)
-OPENAI_API_KEY      For LLM summarization (alternative to Gemini)
-ANTHROPIC_API_KEY   For LLM summarization (alternative to Gemini)
+GEMINI_API_KEY      Free — primary search + summarization (aistudio.google.com)
+BRAVE_API_KEY       Brave Search (2,000 free/month)
+SERPER_API_KEY      Serper.dev (2,500 trial queries)
+GITHUB_TOKEN        For GitHub adapter
+DEVTO_API_KEY       For Dev.to adapter
+HF_TOKEN            For HuggingFace adapter
+OPENAI_API_KEY      Alternative LLM for summarization
+ANTHROPIC_API_KEY   Alternative LLM for summarization
 ```
 
 ## License

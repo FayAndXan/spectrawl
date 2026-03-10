@@ -39,8 +39,8 @@ class Summarizer {
     if (!this.apiKey) return null
 
     const context = sources
-      .slice(0, 5)
-      .map((s, i) => `[${i + 1}] ${s.title}\n${s.url}\n${(s.fullContent || s.snippet || '').slice(0, 1000)}`)
+      .slice(0, 8)
+      .map((s, i) => `[${i + 1}] ${s.title}\n${s.url}\n${(s.fullContent || s.snippet || '').slice(0, 1500)}`)
       .join('\n\n')
 
     const prompt = `Answer this question directly: "${query}"

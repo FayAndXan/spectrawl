@@ -82,16 +82,31 @@ function jsonRequest(method, url, body, headers) {
     const urlObj = new URL(url)
     const opts = {
       hostname: urlObj.hostname,
-      path: urlObj.pathname,
+      path: urlObj.pathname + urlObj.search,
       method,
-      headers: { ...headers, 'Content-Length': Buffer.byteLength(body) }
+      headers: { 
+        ...headers, 
+        'Content-Length': Buffer.byteLength(body),
+        'User-Agent': 'Spectrawl/0.3',
+        'Accept': 'application/json'
+      }
     }
     const req = https.request(opts, res => {
+      // Handle redirects
+      if ([301, 302, 307, 308].includes(res.statusCode) && res.headers.location) {
+        return jsonRequest(method, res.headers.location, body, headers).then(resolve).catch(reject)
+      }
       let data = ''
       res.on('data', c => data += c)
       res.on('end', () => {
+        if (!data && (res.statusCode >= 200 && res.statusCode < 300)) {
+          return resolve({ success: true, statusCode: res.statusCode })
+        }
+        if (res.statusCode >= 400) {
+          return reject(new Error(`Dev.to API ${res.statusCode}: ${data.slice(0, 200)}`))
+        }
         try { resolve(JSON.parse(data)) }
-        catch (e) { reject(new Error(`Invalid Dev.to response: ${data.slice(0, 200)}`)) }
+        catch (e) { reject(new Error(`Invalid Dev.to response (${res.statusCode}): ${data.slice(0, 200)}`)) }
       })
     })
     req.on('error', reject)

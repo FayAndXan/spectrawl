@@ -84,9 +84,18 @@
 - **Spectrawl = for agents, not scripts** — agents need rich sources, not pre-chewed answers. Tavily is better for scripts.
 - **Compaction model set to Sonnet** — Opus was timing out on 167K context compaction
 
+## Session 10 Decisions (05:52-06:19 UTC, Mar 10) — Browse Validation + CAPTCHA
+- **Camoufox verified** — installed, browse works, anti-detect confirmed (spoofs Mac UA on Linux)
+- **Auth flow E2E** — full cycle tested: add cookies → retrieve → browse → update → remove
+- **Form filler works** — smartFill on real httpbin form, auto-detects input type
+- **CAPTCHA strategy: 3-tier** — stealth bypass → Gemini Vision (image CAPTCHAs) → report unsolvable (token-based)
+- **No free CAPTCHA token solving** — reCAPTCHA/hCaptcha need 2captcha ($3/1K)
+- **No free proxy rotation** — all free lists are dead/flagged. Tor blocked.
+- **Installer 5-method extraction** — unzip → 7z → bsdtar → jar → python3 (fixes zip64 bug)
+
 ## Next Steps
-- Further speed optimization (streaming answers, pre-indexing)
-- Test remaining 14 untested adapters (need accounts)
-- Wire proxy into browse engine
-- Browser-automation adapters need selector validation
-- README update with speed benchmarks and mode documentation
+- README update with browse tiers, CAPTCHA docs, speed benchmarks
+- Test remaining 17 untested adapters (need accounts)
+- Wire proxy rotation (when Fay gets ProxyCheap or similar)
+- Battle-test CAPTCHA solver on real protected sites
+- Streaming answers for perceived speed improvement

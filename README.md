@@ -1,50 +1,20 @@
 # Spectrawl
 
-The unified web layer for AI agents. Search, browse, authenticate, and act on platforms — one tool, self-hosted, free.
+The unified web layer for AI agents. Search, browse, authenticate, and act on platforms — one package, self-hosted.
 
-**5,000 free searches/month** with Google-quality results via Gemini Grounded Search. Better answers than Tavily. Self-hosted.
+**5,000 free searches/month** via Gemini Grounded Search. Full page scraping, stealth browsing, 24 platform adapters.
 
 ## What It Does
 
-AI agents need to interact with the web. That means searching, browsing pages, logging into platforms, and posting content. Today you duct-tape together Playwright + Tavily + cookie managers + platform-specific scripts. Spectrawl replaces all of that.
+AI agents need to interact with the web — searching, browsing pages, logging into platforms, posting content. Today you wire together Playwright + a search API + cookie managers + platform-specific scripts. Spectrawl is one package that does all of it.
 
 ```
 npm install spectrawl
 ```
 
-## Real Output
+## How It Works
 
-Here's actual output from Spectrawl vs Tavily on the same query:
-
-**Query:** `"best open source AI agent frameworks 2025"`
-
-### Spectrawl (free)
-```
-Time: 16.8s | Sources: 19
-
-Answer: The leading open-source AI agent frameworks for 2025 include AutoGen,
-CrewAI, LangChain, LangGraph, and Semantic Kernel [1, 2, 3]. AutoGen is
-recognized for enabling complex multi-agent conversations, while CrewAI
-focuses on orchestrating collaborative AI agents [1, 2]. LangChain and its
-component LangGraph provide robust tools for building sophisticated agent
-workflows and state management [1, 2, 3]. Semantic Kernel, developed by
-Microsoft, integrates large language models with conventional programming
-languages [1, 2, 3].
-
-Other prominent frameworks include LlamaIndex, Haystack, BabyAGI, AgentGPT,
-SuperAGI, MetaGPT, and Open Interpreter [1, 2].
-```
-**12 frameworks named, inline citations, 19 sources**
-
-### Tavily ($0.01/query)
-```
-Time: 2s | Sources: 10
-
-Answer: In 2025, LangGraph and Microsoft's AutoGen + Semantic Kernel are
-top open-source AI agent frameworks, favored for their robust orchestration
-and enterprise security features.
-```
-**3 frameworks named, no citations, 10 sources**
+Spectrawl searches via Gemini Grounded Search (Google-quality results), scrapes the top pages for full content, and returns everything to your agent. Your agent's LLM reads the actual sources and forms its own answer — no pre-chewed summaries.
 
 ## Quick Start
 
@@ -74,22 +44,22 @@ const basic = await web.search('query')
 
 > **Why no summary by default?** Your agent already has an LLM. If we summarize AND your agent summarizes, you're paying two LLMs for one answer. We return rich sources — your agent does the rest.
 
-## vs Tavily
+## Spectrawl vs Tavily
+
+Different tools for different needs.
 
 | | Tavily | Spectrawl |
 |---|---|---|
-| Speed | ~2s ✅ | ~7-17s |
-| Answer quality | Generic (3 items) | **Detailed** (12+ items) ✅ |
-| Inline citations | ❌ | **[1] [2] [3]** ✅ |
-| Results per query | 10 | **12-19** ✅ |
-| Cost | $0.01/query | **Free** (5K/mo) ✅ |
-| Self-hosted | No | **Yes** ✅ |
-| Source ranking | No | **Domain trust scoring** ✅ |
-| Stealth scraping | No | **Yes** ✅ |
-| Auth + posting | No | **24 adapters** ✅ |
-| Cached repeats | No | **<1ms** ✅ |
+| Speed | ~2s | ~6-10s |
+| Free tier | 1,000/month | 5,000/month |
+| Returns | Snippets + AI answer | Full page content + snippets |
+| Self-hosted | No | Yes |
+| Stealth browsing | No | Yes (Camoufox + Playwright) |
+| Platform posting | No | 24 adapters |
+| Auth management | No | Cookie store + auto-refresh |
+| Cached repeats | No | <1ms |
 
-Spectrawl wins on answer quality, result volume, features, and cost. Tavily wins on speed.
+**Tavily** is fast and simple — great for agents that need quick answers. **Spectrawl** returns richer data and does more (browse, auth, post) — but it's slower. Choose based on your use case.
 
 ## Search
 

@@ -61,6 +61,65 @@ const server = http.createServer(async (req, res) => {
       return json(res, result)
     }
 
+    // Threads OAuth callback
+    if (req.method === 'GET' && path === '/auth/callback/threads') {
+      const code = url.searchParams.get('code')
+      const errParam = url.searchParams.get('error')
+      if (errParam) {
+        res.writeHead(200, { 'Content-Type': 'text/html' })
+        return res.end(`<h2>❌ Auth error: ${errParam}</h2>`)
+      }
+      if (!code) {
+        res.writeHead(400, { 'Content-Type': 'text/html' })
+        return res.end('<h2>❌ No code received</h2>')
+      }
+      try {
+        // Exchange code for token
+        const fetch = require('node:https')
+        const params = new URLSearchParams({
+          client_id: '1574846783732558',
+          client_secret: 'f8589ca3523b0ea5bab3fac2c2ae4c15',
+          code,
+          grant_type: 'authorization_code',
+          redirect_uri: 'https://gateway.xanos.org/auth/callback/threads'
+        })
+        const tokenRes = await new Promise((resolve, reject) => {
+          const postData = params.toString()
+          const options = {
+            hostname: 'graph.threads.net',
+            path: '/oauth/access_token',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'Content-Length': Buffer.byteLength(postData)
+            }
+          }
+          const req2 = fetch.request(options, (r) => {
+            let data = ''
+            r.on('data', chunk => data += chunk)
+            r.on('end', () => resolve(JSON.parse(data)))
+          })
+          req2.on('error', reject)
+          req2.write(postData)
+          req2.end()
+        })
+        // Save to credentials
+        const fs = require('fs')
+        const credsPath = '/root/.openclaw/workspace-dijiclaw/.openclaw/credentials/threads-api.json'
+        const creds = JSON.parse(fs.readFileSync(credsPath, 'utf8'))
+        creds.user_token = tokenRes.access_token
+        creds.user_id = tokenRes.user_id
+        creds.token_type = tokenRes.token_type
+        creds.note = 'User token saved via OAuth callback'
+        fs.writeFileSync(credsPath, JSON.stringify(creds, null, 2))
+        res.writeHead(200, { 'Content-Type': 'text/html' })
+        return res.end('<h2>✅ Threads connected! You can close this tab.</h2>')
+      } catch (e) {
+        res.writeHead(500, { 'Content-Type': 'text/html' })
+        return res.end(`<h2>❌ Token exchange failed: ${e.message}</h2>`)
+      }
+    }
+
     return error(res, 404, 'Not found')
   } catch (err) {
     console.error('Server error:', err)

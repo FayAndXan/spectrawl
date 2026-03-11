@@ -2,7 +2,7 @@
 
 The unified web layer for AI agents. Search, browse, authenticate, and act on platforms — one package, self-hosted.
 
-**5,000 free searches/month** via Gemini Grounded Search. Full page scraping, stealth browsing, 24 platform adapters.
+**5,000 free searches/month** via Gemini Grounded Search. Full page scraping, stealth browsing, 19 platform adapters.
 
 ## What It Does
 
@@ -55,7 +55,7 @@ Different tools for different needs.
 | Returns | Snippets + AI answer | Full page content + snippets |
 | Self-hosted | No | Yes |
 | Stealth browsing | No | Yes (Camoufox + Playwright) |
-| Platform posting | No | 24 adapters |
+| Platform posting | No | 19 adapters |
 | Auth management | No | Cookie store + auto-refresh |
 | Cached repeats | No | <1ms |
 
@@ -124,9 +124,9 @@ const accounts = await web.auth.getStatus()
 
 Cookie refresh cron fires `cookie_expiring` and `cookie_expired` events before accounts go stale.
 
-## Act — 24 Platform Adapters
+## Act — 19 Platform Adapters
 
-Post to 24+ platforms with one API:
+Post to 19 platforms with one API:
 
 ```js
 await web.act('github', 'create-issue', { repo: 'user/repo', title: 'Bug report', body: '...' })
@@ -135,7 +135,7 @@ await web.act('devto', 'post', { title: '...', body: '...', tags: ['ai'] })
 await web.act('huggingface', 'create-repo', { name: 'my-model', type: 'model' })
 ```
 
-**Live tested:** GitHub ✅, Reddit ✅, Dev.to ✅, HuggingFace ✅, X (reads) ✅
+**Live tested:** GitHub ✅, Reddit ✅, Dev.to ✅, HuggingFace ✅, X (reads) ✅, LinkedIn ✅, Hashnode ✅, Discord ✅, Hacker News ✅
 
 | Platform | Auth Method | Actions |
 |----------|-------------|---------|
@@ -154,7 +154,10 @@ await web.act('huggingface', 'create-repo', { name: 'my-model', type: 'model' })
 | Quora | Browser automation | answer |
 | HuggingFace | Hub API | repo, model card, upload |
 | BetaList | REST API | submit |
-| **14 Directories** | Generic adapter | submit |
+| AlternativeTo | Cookie session | submit, claim |
+| DevHunt | Supabase auth | submit, upvote |
+| SaaSHub | Generic adapter | submit |
+| **Generic Directory** | Configurable | submit |
 
 Built-in rate limiting, content dedup (MD5, 24h window), and dead letter queue for retries.
 

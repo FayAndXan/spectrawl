@@ -135,7 +135,7 @@ await web.act('devto', 'post', { title: '...', body: '...', tags: ['ai'] })
 await web.act('huggingface', 'create-repo', { name: 'my-model', type: 'model' })
 ```
 
-**Live tested:** GitHub ✅, Reddit ✅, Dev.to ✅, HuggingFace ✅, X (reads) ✅, LinkedIn ✅, Hashnode ✅, Discord ✅, Hacker News ✅
+**Live tested:** GitHub ✅, Reddit ✅, Dev.to ✅, HuggingFace ✅, X (reads) ✅, Hashnode ✅, Discord ✅, Product Hunt ✅
 
 | Platform | Auth Method | Actions |
 |----------|-------------|---------|

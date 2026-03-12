@@ -260,8 +260,10 @@ class CrawlEngine {
     const totalMB = Math.floor(os.totalmem() / 1024 / 1024)
     const freeMB = Math.floor(os.freemem() / 1024 / 1024)
     const concurrency = detectConcurrency()
-    // Estimate: each page takes ~4s with stealth delays
-    const pagesPerMinute = concurrency * 15  // ~4s per page
+    // Realistic: ~0.8s per page with fast mode, limited by shared browser pipeline
+    // Concurrency helps but not linearly — shared browser bottleneck
+    const effectiveConcurrency = Math.min(concurrency, 5) // diminishing returns past 5
+    const pagesPerMinute = Math.floor(effectiveConcurrency * 30)  // ~2s effective per page with overhead
     return {
       totalRamMB: totalMB,
       freeRamMB: freeMB,
@@ -279,7 +281,8 @@ class CrawlEngine {
         _cookies: cookies,
         timeout: config.timeout,
         html: true,
-        noCache: true
+        noCache: true,
+        fastMode: true  // crawl mode: reduced delays for speed
       })
       if (result?.content) {
         const linkSource = result.html || result.content

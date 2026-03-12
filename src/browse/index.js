@@ -127,12 +127,21 @@ class BrowseEngine {
 
       await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 })
 
-      // Human-like delays
-      await page.waitForTimeout(800 + Math.random() * 1500)
-      await page.evaluate(() => {
-        window.scrollBy({ top: Math.floor(Math.random() * 400) + 100, behavior: 'smooth' })
-      })
-      await page.waitForTimeout(300 + Math.random() * 700)
+      if (opts.fastMode) {
+        // Crawl mode: minimal delays, just enough for lazy-load triggers
+        await page.waitForTimeout(400)
+        await page.evaluate(() => {
+          window.scrollBy({ top: 500, behavior: 'instant' })
+        })
+        await page.waitForTimeout(200)
+      } else {
+        // Normal browse: full human-like delays
+        await page.waitForTimeout(800 + Math.random() * 1500)
+        await page.evaluate(() => {
+          window.scrollBy({ top: Math.floor(Math.random() * 400) + 100, behavior: 'smooth' })
+        })
+        await page.waitForTimeout(300 + Math.random() * 700)
+      }
 
       const result = {}
 

@@ -193,11 +193,14 @@ LinkedIn fingerprints the IP where cookies were created. Even valid cookies get 
 - Jina Reader: empty response
 - Facebook/Googlebot UA: 317K of CSS, zero content
 
-**The only working solution is a residential proxy.** We recommend [Smartproxy](https://smartproxy.com) ($7/GB pay-as-you-go, 55M residential IPs, 3-day free trial). At typical usage (~10 LinkedIn pages/month), cost is under $0.50/month.
+**The only working solution is a residential proxy.** We recommend [Bright Data](https://brightdata.com) for best results (72M+ residential IPs, ~99.7% success rate, dedicated social media unlockers). For budget use, [Smartproxy](https://smartproxy.com) ($7/GB, 55M IPs, 3-day free trial) works well at lower cost.
 
 Setup:
 ```bash
-# Add your proxy to Spectrawl config
+# Bright Data (recommended)
+npx spectrawl config set proxy '{"host":"brd.superproxy.io","port":22225,"username":"YOUR_ZONE_USER","password":"YOUR_PASS"}'
+
+# Smartproxy (budget alternative)
 npx spectrawl config set proxy '{"host":"gate.smartproxy.com","port":10001,"username":"YOUR_USER","password":"YOUR_PASS"}'
 
 # Store your LinkedIn cookies (export from browser)
@@ -753,9 +756,9 @@ npx spectrawl proxy --port 8080
 
 | Provider | Price | IPs | Best For |
 |----------|-------|-----|----------|
+| [Bright Data](https://brightdata.com) | $12+/GB | 72M | ⭐ Best quality, ~99.7% success, social unlockers |
 | [Smartproxy](https://smartproxy.com) | $7/GB | 55M | Best budget option, 3-day free trial |
 | [IPRoyal](https://iproyal.com) | $7/GB | 32M | Good alternative |
-| [Bright Data](https://brightdata.com) | $12+/GB | 72M | Best quality, enterprise |
 | [Oxylabs](https://oxylabs.io) | $10+/GB | 100M+ | Enterprise-grade |
 
 ## MCP Server

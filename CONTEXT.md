@@ -3,7 +3,7 @@
 ## What
 Self-hosted Node.js package — unified web layer for AI agents. One API for search, browse, crawl, auth, and platform actions. 5,000 free searches/month via Gemini Grounded Search. Open source, MIT, npm installable.
 
-## Status: v0.4.3 — Crawl engine v2 shipped
+## Status: v0.5.0 — RFC 9457 errors + block detection shipped
 Crawl engine rebuilt: Camoufox-only (no Jina), auto-parallel based on RAM, async jobs, fast mode. Repo now public. Published on npm.
 
 ## Repo

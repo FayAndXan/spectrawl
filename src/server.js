@@ -40,10 +40,12 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'POST' && path === '/browse') {
       const body = await readBody(req)
-      const { url: targetUrl, auth, screenshot, html, stealth } = body
+      const { url: targetUrl, auth, screenshot, fullPage, html, stealth, camoufox, noCache,
+              captureNetwork, captureNetworkHeaders, captureNetworkBody } = body
       if (!targetUrl) return error(res, 400, 'url is required')
       
-      const result = await spectrawl.browse(targetUrl, { auth, screenshot, html, stealth })
+      const result = await spectrawl.browse(targetUrl, { auth, screenshot, fullPage, html, stealth, 
+              camoufox, noCache, captureNetwork, captureNetworkHeaders, captureNetworkBody })
       
       // If screenshot, return as base64
       if (result.screenshot) {
@@ -55,10 +57,11 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && path === '/crawl') {
       const body = await readBody(req)
       const { url: targetUrl, depth, maxPages, format, delay, stealth, scope, auth,
-              includePatterns, excludePatterns, merge, async: asyncMode, concurrency } = body
+              includePatterns, excludePatterns, merge, async: asyncMode, concurrency,
+              useSitemap, webhook } = body
       if (!targetUrl) return error(res, 400, 'url is required')
       
-      const opts = { depth, maxPages, format, delay, stealth, scope, auth, includePatterns, excludePatterns, merge, concurrency }
+      const opts = { depth, maxPages, format, delay, stealth, scope, auth, includePatterns, excludePatterns, merge, concurrency, useSitemap, webhook }
       
       if (asyncMode) {
         // Async mode: return job ID immediately
@@ -86,6 +89,28 @@ const server = http.createServer(async (req, res) => {
       const job = spectrawl.getCrawlJob(jobId)
       if (!job) return error(res, 404, 'job not found')
       return json(res, job)
+    }
+
+    if (req.method === 'POST' && path === '/extract') {
+      const body = await readBody(req)
+      const { url: targetUrl, instruction, schema, selector, relevanceFilter, model } = body
+      if (!targetUrl) return error(res, 400, 'url is required')
+      
+      const result = await spectrawl.extract(targetUrl, { instruction, schema, selector, relevanceFilter, model })
+      return json(res, result)
+    }
+
+    if (req.method === 'POST' && path === '/agent') {
+      const body = await readBody(req)
+      const { url: targetUrl, instruction, maxSteps, screenshot, timeout } = body
+      if (!targetUrl) return error(res, 400, 'url is required')
+      if (!instruction) return error(res, 400, 'instruction is required')
+      
+      const result = await spectrawl.agent(targetUrl, instruction, { maxSteps, screenshot, timeout })
+      if (result.screenshot) {
+        result.screenshot = result.screenshot.toString('base64')
+      }
+      return json(res, result)
     }
 
     if (req.method === 'POST' && path === '/act') {
@@ -216,11 +241,14 @@ function readBody(req) {
 const port = config.port || 3900
 server.listen(port, () => {
   console.log(`🌐 Spectrawl server running on http://localhost:${port}`)
-  console.log(`   POST /search  — search the web`)
-  console.log(`   POST /browse  — stealth browse`)
-  console.log(`   POST /act     — platform actions`)
-  console.log(`   GET  /status  — auth health`)
-  console.log(`   GET  /health  — server health`)
+  console.log(`   POST /search   — search the web`)
+  console.log(`   POST /browse   — stealth browse`)
+  console.log(`   POST /crawl    — crawl websites`)
+  console.log(`   POST /extract  — structured data extraction`)
+  console.log(`   POST /agent    — natural language browser actions`)
+  console.log(`   POST /act      — platform actions`)
+  console.log(`   GET  /status   — auth health`)
+  console.log(`   GET  /health   — server health`)
 })
 
 // Graceful shutdown

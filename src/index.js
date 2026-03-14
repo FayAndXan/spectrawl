@@ -8,6 +8,8 @@ const { BrowseEngine } = require('./browse')
 const { AuthManager } = require('./auth')
 const { ActEngine } = require('./act')
 const { CrawlEngine } = require('./crawl')
+const { ExtractEngine } = require('./extract')
+const { AgentEngine } = require('./agent')
 const { Cache } = require('./cache')
 const { EventEmitter, EVENTS } = require('./events')
 const { CookieRefresher } = require('./auth/refresh')
@@ -38,6 +40,8 @@ class Spectrawl {
     this.auth = new AuthManager(this.config.auth)
     this.actEngine = new ActEngine(this.config, this.auth, this.browseEngine)
     this.crawlEngine = new CrawlEngine(this.browseEngine, this.cache)
+    this.extractEngine = new ExtractEngine(this.browseEngine, this.config.search)
+    this.agentEngine = new AgentEngine(this.browseEngine, this.config.search)
     this.refresher = new CookieRefresher(this.auth, this.events, this.config.auth)
   }
 
@@ -111,6 +115,37 @@ class Spectrawl {
    */
   listCrawlJobs() {
     return this.crawlEngine.listJobs()
+  }
+
+  /**
+   * Extract structured data from a URL using LLM.
+   * @param {string} url - URL to extract from
+   * @param {object} opts - { instruction, schema, selector, relevanceFilter, model }
+   * @returns {Promise<{data, url, title, contentLength, duration}>}
+   */
+  async extract(url, opts = {}) {
+    return this.extractEngine.extract(url, opts)
+  }
+
+  /**
+   * Extract from already-fetched content (no browsing).
+   * @param {string} content - Page content
+   * @param {object} opts - { instruction, schema, relevanceFilter }
+   * @returns {Promise<{data}>}
+   */
+  async extractFromContent(content, opts = {}) {
+    return this.extractEngine.extractFromContent(content, opts)
+  }
+
+  /**
+   * Execute natural language browser actions.
+   * @param {string} url - URL to navigate to
+   * @param {string} instruction - what to do (e.g. "click the login button")
+   * @param {object} opts - { maxSteps, screenshot, timeout }
+   * @returns {Promise<{success, url, title, steps, content, screenshot?, duration}>}
+   */
+  async agent(url, instruction, opts = {}) {
+    return this.agentEngine.act(url, instruction, opts)
   }
 
   /**

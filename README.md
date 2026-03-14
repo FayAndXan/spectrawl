@@ -1,8 +1,8 @@
 # Spectrawl
 
-The unified web layer for AI agents. Search, browse, crawl, authenticate, and act on platforms — one package, self-hosted.
+The unified web layer for AI agents. Search, browse, crawl, extract, and act on platforms — one package, self-hosted.
 
-**5,000 free searches/month** via Gemini Grounded Search. Full page scraping, stealth browsing, multi-page crawling, 24 platform adapters.
+**5,000 free searches/month** via Gemini Grounded Search. Full page scraping, stealth browsing, multi-page crawling, structured extraction, AI browser agent, 24 platform adapters.
 
 ## What It Does
 
@@ -46,18 +46,21 @@ const basic = await web.search('query')
 
 ## Spectrawl vs Others
 
-| | Tavily | Crawl4AI | Firecrawl | Spectrawl |
-|---|---|---|---|---|
-| Speed | ~2s | ~5s | ~3s | ~6-10s |
-| Free tier | 1,000/mo | Unlimited | 500/mo | 5,000/mo |
-| Returns | Snippets + AI | Markdown | Markdown/JSON | Full page + snippets |
-| Self-hosted | No | Yes | Yes | Yes |
-| Anti-detect | No | No | No | **Yes (Camoufox)** |
-| Block detection | No | No | No | **8 services** |
-| CAPTCHA solving | No | No | No | **Yes (Gemini Vision)** |
-| Multi-page crawl | No | Yes | Yes | **Yes** |
-| Platform posting | No | No | No | **24 adapters** |
-| Auth management | No | No | No | **Cookie store + refresh** |
+| | Tavily | Crawl4AI | Firecrawl | Stagehand | Spectrawl |
+|---|---|---|---|---|---|
+| Speed | ~2s | ~5s | ~3s | ~3s | ~6-10s |
+| Free tier | 1,000/mo | Unlimited | 500/mo | None | 5,000/mo |
+| Returns | Snippets + AI | Markdown | Markdown/JSON | Structured | Full page + structured |
+| Self-hosted | No | Yes | Yes | Yes | Yes |
+| Anti-detect | No | No | No | No | **Yes (Camoufox)** |
+| Block detection | No | No | No | No | **8 services** |
+| CAPTCHA solving | No | No | No | No | **Yes (Gemini Vision)** |
+| Structured extraction | No | No | No | **Yes** | **Yes** |
+| NL browser agent | No | No | No | **Yes** | **Yes** |
+| Network capturing | No | Yes | No | No | **Yes** |
+| Multi-page crawl | No | Yes | Yes | No | **Yes (+ sitemap)** |
+| Platform posting | No | No | No | No | **24 adapters** |
+| Auth management | No | No | No | No | **Cookie store + refresh** |
 
 ## Search
 
@@ -181,6 +184,157 @@ Built-in CAPTCHA solver using **Gemini Vision** (free tier: 1,500 req/day):
 
 The solver automatically detects CAPTCHA type and attempts resolution before returning the page.
 
+## Extract — Structured Data Extraction
+
+Pull structured data from any page using LLM + optional CSS/XPath selectors. Like Stagehand's `extract()` but self-hosted and integrated with Spectrawl's anti-detect browsing.
+
+### Basic Extraction
+
+```js
+const result = await web.extract('https://news.ycombinator.com', {
+  instruction: 'Extract the top 3 story titles and their point counts',
+  schema: {
+    type: 'object',
+    properties: {
+      stories: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            title: { type: 'string' },
+            points: { type: 'number' }
+          }
+        }
+      }
+    }
+  }
+})
+// result.data = { stories: [{ title: "...", points: 210 }, ...] }
+```
+
+### HTTP API
+
+```bash
+curl -X POST http://localhost:3900/extract \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "url": "https://example.com",
+    "instruction": "Extract the page title and main heading",
+    "schema": {"type": "object", "properties": {"title": {"type": "string"}, "heading": {"type": "string"}}}
+  }'
+```
+
+Response:
+```json
+{
+  "data": { "title": "Example Domain", "heading": "Example Domain" },
+  "url": "https://example.com",
+  "title": "Example Domain",
+  "contentLength": 129,
+  "duration": 679
+}
+```
+
+### Targeted Extraction with Selectors
+
+Narrow extraction scope using CSS or XPath selectors — reduces tokens and improves accuracy:
+
+```js
+const result = await web.extract('https://news.ycombinator.com', {
+  instruction: 'Extract all story titles',
+  selector: '.titleline',  // CSS selector
+  // or: selector: 'xpath=//table[@class="itemlist"]'
+  schema: { type: 'object', properties: { titles: { type: 'array', items: { type: 'string' } } } }
+})
+```
+
+### Relevance Filtering (BM25)
+
+For large pages, filter content by relevance before sending to the LLM — saves tokens:
+
+```js
+const result = await web.extract('https://en.wikipedia.org/wiki/Node.js', {
+  instruction: 'Extract the creator and release date',
+  relevanceFilter: true   // BM25 scoring keeps only relevant sections
+})
+// Content reduced from 50K+ chars to ~2K relevant chars
+```
+
+### Extract from Content (No Browsing)
+
+Already have the content? Skip the browse step:
+
+```js
+const result = await web.extractFromContent(markdownContent, {
+  instruction: 'Extract all email addresses',
+  schema: { type: 'object', properties: { emails: { type: 'array', items: { type: 'string' } } } }
+})
+```
+
+Uses Gemini Flash (free) by default. Falls back to OpenAI if configured.
+
+## Agent — Natural Language Browser Actions
+
+Control a browser with natural language. Navigate, click, type, scroll — the LLM interprets the page and decides what to do.
+
+```js
+const result = await web.agent('https://example.com', 'click the More Information link', {
+  maxSteps: 5,       // max actions to take
+  screenshot: true   // screenshot after completion
+})
+// result.success = true
+// result.url = "https://www.iana.org/domains/reserved" (navigated!)
+// result.steps = [{ step: 1, action: "click", elementIdx: 0, result: "clicked" }, ...]
+```
+
+### HTTP API
+
+```bash
+curl -X POST http://localhost:3900/agent \
+  -H 'Content-Type: application/json' \
+  -d '{"url": "https://example.com", "instruction": "click the More Information link", "maxSteps": 3}'
+```
+
+Response:
+```json
+{
+  "success": true,
+  "url": "https://www.iana.org/domains/reserved",
+  "title": "IANA — Reserved Domains",
+  "steps": [
+    { "step": 1, "action": "click", "elementIdx": 0, "reason": "clicking the More Information link", "result": "clicked" }
+  ],
+  "content": "...",
+  "duration": 5200
+}
+```
+
+### Supported Actions
+
+The agent can: **click**, **type** (fill inputs), **select** (dropdowns), **press** (keyboard keys), **scroll** (up/down).
+
+## Network Request Capturing
+
+Capture XHR/fetch requests made by a page during browsing — useful for discovering hidden APIs:
+
+```js
+const result = await web.browse('https://example.com', {
+  captureNetwork: true,
+  captureNetworkHeaders: true,  // include request headers
+  captureNetworkBody: true      // include response bodies (<50KB)
+})
+// result.networkRequests = [
+//   { url: "https://api.example.com/data", method: "GET", status: 200, contentType: "application/json", body: "..." }
+// ]
+```
+
+### HTTP API
+
+```bash
+curl -X POST http://localhost:3900/browse \
+  -d '{"url": "https://example.com", "captureNetwork": true, "captureNetworkBody": true}'
+```
+
 ## Screenshots
 
 Take screenshots of any page via browse:
@@ -252,6 +406,32 @@ const result = await web.crawl('https://docs.example.com', {
   }
 }
 ```
+
+### Sitemap-Based Crawling
+
+Spectrawl auto-discovers `sitemap.xml` and pre-seeds the crawl queue — much faster than link-following for documentation sites:
+
+```js
+const result = await web.crawl('https://docs.example.com', {
+  useSitemap: true,  // enabled by default
+  maxPages: 20
+})
+// [crawl] Found sitemap at https://docs.example.com/sitemap.xml with 82 URLs
+// [crawl] Pre-seeded 20 URLs from sitemap
+```
+
+Set `useSitemap: false` to disable and rely only on link discovery.
+
+### Webhook Notifications
+
+Get notified when a crawl completes:
+
+```bash
+curl -X POST http://localhost:3900/crawl \
+  -d '{"url": "https://docs.example.com", "maxPages": 50, "webhook": "https://your-server.com/webhook"}'
+```
+
+Spectrawl will POST the full crawl result to your webhook URL when finished.
 
 ### Async Crawl Jobs
 
@@ -394,6 +574,8 @@ npx spectrawl serve --port 3900
 | `POST` | `/search` | Search the web |
 | `POST` | `/browse` | Stealth browse a URL |
 | `POST` | `/crawl` | Crawl a website (sync or async) |
+| `POST` | `/extract` | Structured data extraction with LLM |
+| `POST` | `/agent` | Natural language browser actions |
 | `POST` | `/act` | Platform actions |
 | `GET` | `/status` | Auth account health |
 | `GET` | `/health` | Server health |

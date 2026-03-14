@@ -120,6 +120,40 @@ class BrowseEngine {
     const context = await this._createContext(browser, opts)
     const page = await context.newPage()
 
+    // Network request capturing
+    const networkRequests = []
+    if (opts.captureNetwork) {
+      page.on('request', req => {
+        const resourceType = req.resourceType()
+        if (['xhr', 'fetch'].includes(resourceType)) {
+          networkRequests.push({
+            url: req.url(),
+            method: req.method(),
+            resourceType,
+            headers: opts.captureNetworkHeaders ? req.headers() : undefined,
+            postData: req.postData() || undefined
+          })
+        }
+      })
+      page.on('response', async res => {
+        const req = res.request()
+        const resourceType = req.resourceType()
+        if (['xhr', 'fetch'].includes(resourceType)) {
+          const existing = networkRequests.find(r => r.url === req.url() && r.method === req.method())
+          if (existing) {
+            existing.status = res.status()
+            existing.contentType = res.headers()['content-type'] || null
+            if (opts.captureNetworkBody) {
+              try {
+                const body = await res.text().catch(() => null)
+                if (body && body.length < 50000) existing.body = body
+              } catch (e) { /* ignore */ }
+            }
+          }
+        }
+      })
+    }
+
     try {
       if (opts._cookies) {
         await context.addCookies(opts._cookies)
@@ -167,6 +201,11 @@ class BrowseEngine {
       result.statusCode = null // playwright doesn't expose easily, but we detect blocks below
       result.cached = false
       result.engine = this._engine
+
+      // Attach captured network requests
+      if (opts.captureNetwork && networkRequests.length > 0) {
+        result.networkRequests = networkRequests
+      }
 
       // Detect block pages (Cloudflare, Akamai, etc.)
       const blockInfo = detectBlockPage(result.content, result.title, result.html, result.url)

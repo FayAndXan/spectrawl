@@ -131,3 +131,10 @@
 - Decision: don't chase Cloudflare on throughput — our edge is stealth + free + no dependencies
 - Decision: Opus set as default model (was Sonnet)
 - Tweet drafted: honest CF vs Spectrawl comparison
+- RFC 9457 structured errors added to all API endpoints
+- Block page detection for 8 anti-bot services (CF, Akamai, AWS WAF, Imperva, DataDome, PerimeterX, hCaptcha, generic)
+- Crawl auto-retries with full stealth when block detected
+- Published v0.5.0
+- Memory cleanup: trimmed all daily notes (41K→8K), MEMORY.md (3.1K→1.6K)
+- System cron for memory maintenance (not heartbeat — saves Opus tokens)
+- Heartbeats turned off

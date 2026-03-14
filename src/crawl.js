@@ -90,6 +90,29 @@ class CrawlEngine {
     const failed = []
     let activeCount = 0
 
+    // Sitemap-based crawling: pre-seed queue with sitemap URLs
+    if (config.useSitemap !== false) {
+      try {
+        const sitemapUrls = await fetchSitemap(startUrl)
+        if (sitemapUrls.length > 0) {
+          for (const sUrl of sitemapUrls.slice(0, config.maxPages)) {
+            const norm = normalizeUrl(sUrl)
+            if (!visited.has(norm) && this._inScope(sUrl, baseDomain, basePrefix, config.scope)) {
+              if (!config.skipPatterns.some(p => p.test(sUrl))) {
+                if (this._matchesFilters(sUrl, config.includePatterns, config.excludePatterns)) {
+                  visited.add(norm)
+                  queue.push({ url: sUrl, depth: 0 })
+                }
+              }
+            }
+          }
+          console.log(`[crawl] Pre-seeded ${Math.min(sitemapUrls.length, config.maxPages)} URLs from sitemap`)
+        }
+      } catch (e) {
+        console.log(`[crawl] Sitemap fetch failed, continuing with link discovery`)
+      }
+    }
+
     // Process queue with concurrency control
     const processUrl = async (item) => {
       const { url, depth } = item
@@ -175,6 +198,14 @@ class CrawlEngine {
       result.merged = pages.map(p => {
         return `<!-- Source: ${p.url} -->\n# ${p.title || p.url}\n\n${p.content}`
       }).join('\n\n---\n\n')
+    }
+
+    // Webhook notification
+    if (config.webhook) {
+      sendWebhook(config.webhook, {
+        event: 'crawl_complete',
+        ...result
+      }).catch(err => console.error('[crawl] Webhook failed:', err.message))
     }
 
     return result
@@ -369,6 +400,93 @@ function resolveUrl(url, base) {
   } catch {
     return null
   }
+}
+
+/**
+ * Fetch and parse sitemap.xml for a domain.
+ * Returns array of URLs found in the sitemap.
+ */
+async function fetchSitemap(startUrl) {
+  const { URL } = require('url')
+  const base = new URL(startUrl)
+  const sitemapUrls = [
+    `${base.origin}/sitemap.xml`,
+    `${base.origin}/sitemap_index.xml`,
+    `${base.origin}/sitemap/sitemap.xml`
+  ]
+
+  for (const sitemapUrl of sitemapUrls) {
+    try {
+      const xml = await fetchText(sitemapUrl, 5000)
+      if (!xml || !xml.includes('<url') && !xml.includes('<sitemap')) continue
+
+      const urls = []
+      // Extract <loc> URLs from sitemap
+      const locMatches = xml.matchAll(/<loc>\s*(.*?)\s*<\/loc>/gi)
+      for (const match of locMatches) {
+        const loc = match[1].trim()
+        // If it's a sitemap index, recursively fetch
+        if (loc.endsWith('.xml') || loc.includes('sitemap')) {
+          try {
+            const subXml = await fetchText(loc, 5000)
+            if (subXml) {
+              const subMatches = subXml.matchAll(/<loc>\s*(.*?)\s*<\/loc>/gi)
+              for (const subMatch of subMatches) {
+                const subLoc = subMatch[1].trim()
+                if (!subLoc.endsWith('.xml')) urls.push(subLoc)
+              }
+            }
+          } catch (e) { /* skip failed sub-sitemaps */ }
+        } else {
+          urls.push(loc)
+        }
+      }
+      if (urls.length > 0) {
+        console.log(`[crawl] Found sitemap at ${sitemapUrl} with ${urls.length} URLs`)
+        return urls
+      }
+    } catch (e) { /* try next */ }
+  }
+  return []
+}
+
+function fetchText(url, timeout = 5000) {
+  const h = url.startsWith('https') ? require('https') : require('http')
+  return new Promise((resolve, reject) => {
+    const req = h.get(url, { timeout, headers: { 'User-Agent': 'Spectrawl/1.0 (sitemap crawler)' } }, res => {
+      if (res.statusCode !== 200) return resolve(null)
+      let data = ''
+      res.on('data', chunk => data += chunk)
+      res.on('end', () => resolve(data))
+    })
+    req.on('error', () => resolve(null))
+    req.setTimeout(timeout, () => { req.destroy(); resolve(null) })
+  })
+}
+
+/**
+ * Send a webhook notification.
+ */
+async function sendWebhook(webhookUrl, data) {
+  const h = webhookUrl.startsWith('https') ? require('https') : require('http')
+  const body = JSON.stringify(data)
+  const urlObj = new URL(webhookUrl)
+  return new Promise((resolve) => {
+    const req = h.request({
+      hostname: urlObj.hostname,
+      port: urlObj.port,
+      path: urlObj.pathname + urlObj.search,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
+    }, res => {
+      res.on('data', () => {})
+      res.on('end', () => resolve(true))
+    })
+    req.on('error', () => resolve(false))
+    req.setTimeout(10000, () => { req.destroy(); resolve(false) })
+    req.write(body)
+    req.end()
+  })
 }
 
 function normalizeUrl(url) {

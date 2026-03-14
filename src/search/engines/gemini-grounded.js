@@ -11,7 +11,7 @@ async function geminiGroundedSearch(query, config = {}) {
   const apiKey = config.apiKey || process.env.GEMINI_API_KEY
   if (!apiKey) throw new Error('GEMINI_API_KEY required for grounded search')
 
-  const model = config.model || 'gemini-2.0-flash'
+  const model = config.model || process.env.GEMINI_GROUNDED_MODEL || process.env.GEMINI_MODEL || 'gemini-2.5-flash'
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`
 
   const body = JSON.stringify({

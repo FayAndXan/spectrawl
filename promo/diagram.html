@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { 
+    background: #0d1117; 
+    color: #e6edf3; 
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    min-height: 100vh;
+    padding: 40px;
+  }
+  .container {
+    width: 1200px;
+    background: #161b22;
+    border-radius: 16px;
+    padding: 48px;
+    border: 1px solid #30363d;
+  }
+  h1 {
+    text-align: center;
+    font-size: 28px;
+    margin-bottom: 40px;
+    color: #58a6ff;
+  }
+  .comparison {
+    display: flex;
+    gap: 32px;
+    margin-bottom: 40px;
+  }
+  .side {
+    flex: 1;
+    background: #0d1117;
+    border-radius: 12px;
+    padding: 24px;
+    border: 1px solid #30363d;
+  }
+  .side h2 {
+    font-size: 18px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .side.bad h2 { color: #f85149; }
+  .side.good h2 { color: #3fb950; }
+  .flow-step {
+    padding: 10px 14px;
+    margin: 8px 0;
+    border-radius: 8px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .side.bad .flow-step {
+    background: #1c1214;
+    border: 1px solid #f8514933;
+    color: #f0a0a0;
+  }
+  .side.good .flow-step {
+    background: #0f1d15;
+    border: 1px solid #3fb95033;
+    color: #a0f0b0;
+  }
+  .cost {
+    text-align: right;
+    font-size: 13px;
+    color: #8b949e;
+    margin-top: 4px;
+  }
+  .side.bad .cost { color: #f85149; }
+  .side.good .cost { color: #3fb950; }
+  .arrow {
+    text-align: center;
+    color: #484f58;
+    font-size: 18px;
+    margin: 4px 0;
+  }
+  .total {
+    margin-top: 16px;
+    padding: 12px;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .side.bad .total {
+    background: #f8514922;
+    border: 1px solid #f85149;
+    color: #f85149;
+  }
+  .side.good .total {
+    background: #3fb95022;
+    border: 1px solid #3fb950;
+    color: #3fb950;
+  }
+  .tagline {
+    text-align: center;
+    color: #8b949e;
+    font-size: 16px;
+    margin-top: 24px;
+  }
+  .tagline span { color: #58a6ff; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🔄 Checking competitor prices every hour</h1>
+  
+  <div class="comparison">
+    <div class="side bad">
+      <h2>❌ With AI Agent</h2>
+      <div class="flow-step">👤 Human sets up the task</div>
+      <div class="arrow">↓</div>
+      <div class="flow-step">🤖 AI Agent wakes up (Claude Opus)</div>
+      <div class="cost">$15 / million tokens</div>
+      <div class="arrow">↓</div>
+      <div class="flow-step">🌐 Browses page, gets 50K chars HTML</div>
+      <div class="arrow">↓</div>
+      <div class="flow-step">🧠 AI reads ALL 50K chars to find prices</div>
+      <div class="cost">~$0.75 per page</div>
+      <div class="arrow">↓</div>
+      <div class="flow-step">📝 AI formats response</div>
+      <div class="arrow">↓</div>
+      <div class="flow-step">🔁 Repeats every hour, 24x/day</div>
+      <div class="total">$75/day · $2,250/month</div>
+    </div>
+    
+    <div class="side good">
+      <h2>✅ With Spectrawl</h2>
+      <div class="flow-step">📝 Write 5-line script once</div>
+      <div class="arrow">↓</div>
+      <div class="flow-step">⏰ Cron runs every hour</div>
+      <div class="cost">No AI agent needed</div>
+      <div class="arrow">↓</div>
+      <div class="flow-step">🌐 Spectrawl browses (stealth anti-bot)</div>
+      <div class="arrow">↓</div>
+      <div class="flow-step">✂️ Filters to 2K relevant chars</div>
+      <div class="cost">BM25 relevance filtering</div>
+      <div class="arrow">↓</div>
+      <div class="flow-step">⚡ Gemini Flash extracts (free tier)</div>
+      <div class="arrow">↓</div>
+      <div class="flow-step">📦 Returns clean JSON</div>
+      <div class="total">~$0/day · $0/month</div>
+    </div>
+  </div>
+  
+  <div class="tagline">
+    <span>npm i spectrawl@0.6.0</span> · Open source · Self-hosted · github.com/FayAndXan/spectrawl
+  </div>
+</div>
+</body>
+</html>

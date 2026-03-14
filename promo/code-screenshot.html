@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { 
+    background: #0d1117; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    min-height: 100vh;
+    padding: 40px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  .container {
+    width: 1200px;
+    background: #161b22;
+    border-radius: 16px;
+    padding: 48px;
+    border: 1px solid #30363d;
+  }
+  h1 {
+    color: #e6edf3;
+    font-size: 24px;
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .subtitle {
+    color: #8b949e;
+    font-size: 15px;
+    text-align: center;
+    margin-bottom: 32px;
+  }
+  .panels {
+    display: flex;
+    gap: 24px;
+  }
+  .panel {
+    flex: 1;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #30363d;
+  }
+  .panel-header {
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .panel.input .panel-header {
+    background: #1c2333;
+    color: #58a6ff;
+  }
+  .panel.output .panel-header {
+    background: #132115;
+    color: #3fb950;
+  }
+  .dots {
+    display: flex;
+    gap: 6px;
+    margin-right: 8px;
+  }
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+  .dot.red { background: #f85149; }
+  .dot.yellow { background: #d29922; }
+  .dot.green { background: #3fb950; }
+  pre {
+    padding: 20px;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 13.5px;
+    line-height: 1.6;
+    background: #0d1117;
+    overflow: hidden;
+  }
+  .panel.input pre { color: #c9d1d9; }
+  .panel.output pre { color: #c9d1d9; }
+  .kw { color: #ff7b72; }
+  .str { color: #a5d6ff; }
+  .fn { color: #d2a8ff; }
+  .num { color: #79c0ff; }
+  .prop { color: #7ee787; }
+  .cmt { color: #484f58; }
+  .punc { color: #8b949e; }
+  .key { color: #ff7b72; }
+  .val-str { color: #a5d6ff; }
+  .val-num { color: #79c0ff; }
+  .arrow-col {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #58a6ff;
+    font-size: 32px;
+    min-width: 40px;
+  }
+  .footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid #30363d;
+  }
+  .footer-left {
+    color: #8b949e;
+    font-size: 13px;
+  }
+  .footer-right {
+    color: #58a6ff;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-right: 8px;
+  }
+  .badge.free { background: #3fb95022; color: #3fb950; border: 1px solid #3fb95044; }
+  .badge.oss { background: #58a6ff22; color: #58a6ff; border: 1px solid #58a6ff44; }
+  .badge.stealth { background: #d2a8ff22; color: #d2a8ff; border: 1px solid #d2a8ff44; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>5 lines → structured data from any website</h1>
+  <div class="subtitle">No scrapers to maintain. No tokens to burn. Works on anti-bot sites.</div>
+  
+  <div class="panels">
+    <div class="panel input">
+      <div class="panel-header">
+        <div class="dots"><div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div></div>
+        request.js
+      </div>
+      <pre><span class="cmt">// That's it. That's the whole script.</span>
+
+<span class="kw">const</span> result <span class="punc">=</span> <span class="kw">await</span> <span class="fn">spectrawl</span><span class="punc">.</span><span class="fn">extract</span><span class="punc">(</span>
+  <span class="str">'https://competitor.com/pricing'</span><span class="punc">,</span>
+  <span class="punc">{</span>
+    <span class="prop">instruction</span><span class="punc">:</span> <span class="str">'get all plan names and prices'</span><span class="punc">,</span>
+    <span class="prop">schema</span><span class="punc">:</span> <span class="punc">{</span>
+      <span class="prop">plans</span><span class="punc">:</span> <span class="punc">[{</span>
+        <span class="prop">name</span><span class="punc">:</span> <span class="str">'string'</span><span class="punc">,</span>
+        <span class="prop">price</span><span class="punc">:</span> <span class="str">'number'</span>
+      <span class="punc">}]</span>
+    <span class="punc">}</span>
+  <span class="punc">}</span>
+<span class="punc">)</span></pre>
+    </div>
+    
+    <div class="arrow-col">→</div>
+    
+    <div class="panel output">
+      <div class="panel-header">
+        <div class="dots"><div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div></div>
+        response.json
+      </div>
+      <pre><span class="punc">{</span>
+  <span class="key">"data"</span><span class="punc">:</span> <span class="punc">{</span>
+    <span class="key">"plans"</span><span class="punc">:</span> <span class="punc">[</span>
+      <span class="punc">{</span> <span class="key">"name"</span><span class="punc">:</span> <span class="val-str">"Starter"</span><span class="punc">,</span> <span class="key">"price"</span><span class="punc">:</span> <span class="val-num">29</span> <span class="punc">},</span>
+      <span class="punc">{</span> <span class="key">"name"</span><span class="punc">:</span> <span class="val-str">"Pro"</span><span class="punc">,</span> <span class="key">"price"</span><span class="punc">:</span> <span class="val-num">79</span> <span class="punc">},</span>
+      <span class="punc">{</span> <span class="key">"name"</span><span class="punc">:</span> <span class="val-str">"Enterprise"</span><span class="punc">,</span> <span class="key">"price"</span><span class="punc">:</span> <span class="val-num">249</span> <span class="punc">}</span>
+    <span class="punc">]</span>
+  <span class="punc">},</span>
+  <span class="key">"duration"</span><span class="punc">:</span> <span class="val-num">680</span><span class="punc">,</span>
+  <span class="cmt">// ← 680ms. Gemini Flash (free).</span>
+<span class="punc">}</span></pre>
+    </div>
+  </div>
+  
+  <div class="footer">
+    <div class="footer-left">
+      <span class="badge free">FREE TIER</span>
+      <span class="badge oss">OPEN SOURCE</span>
+      <span class="badge stealth">ANTI-BOT STEALTH</span>
+    </div>
+    <div class="footer-right">npm i spectrawl@0.6.0 · github.com/FayAndXan/spectrawl</div>
+  </div>
+</div>
+</body>
+</html>

@@ -45,8 +45,42 @@ class BrowseEngine {
       return this._browseRemoteCamoufox(url, opts)
     }
 
+    // Site-specific pre-routing: use known-working alternatives before trying direct browse
+    const siteOverride = this._getSiteOverride(url)
+    if (siteOverride && !opts._skipOverride) {
+      try {
+        const result = await siteOverride(url, opts)
+        if (result && !result.blocked && (result.content || '').length > 50) {
+          return result  // Override succeeded with content
+        }
+        if (result && result.blocked) {
+          return result  // Override confirmed site is blocked — return with actionable message
+        }
+        // Override returned empty/null — fall through to normal browse
+      } catch (e) {
+        // Override failed — fall through
+      }
+    }
+
     try {
-      return await this._browsePlaywright(url, opts)
+      const result = await this._browsePlaywright(url, opts)
+
+      // Post-browse content quality check
+      if (result && result.blocked) {
+        console.log(`[browse] Blocked on ${url}: ${result.blockType} — ${result.blockDetail}`)
+        // Try site override as fallback
+        if (siteOverride) {
+          try {
+            const fallback = await siteOverride(url, { ...opts, _skipOverride: true })
+            if (fallback && !fallback.blocked && (fallback.content || '').length > 50) {
+              fallback._fallback = true
+              return fallback
+            }
+          } catch (e) { /* fallback failed too */ }
+        }
+      }
+
+      return result
     } catch (err) {
       // If blocked and remote Camoufox available, try that
       if (this._isBlocked(err) && this.remoteCamoufox) {
@@ -62,6 +96,101 @@ class BrowseEngine {
       }
       throw err
     }
+  }
+
+  /**
+   * Get site-specific override for sites that block datacenter IPs.
+   * Returns a function that fetches content via alternative methods.
+   */
+  _getSiteOverride(url) {
+    // Reddit: datacenter IPs are fully blocked (browse, JSON, RSS all fail)
+    // Fallback: return block info with actionable message + try Jina
+    if (url.includes('reddit.com')) {
+      return async (originalUrl, opts) => {
+        // Try Jina Reader first (sometimes works)
+        try {
+          const jinaUrl = `https://r.jina.ai/${originalUrl}`
+          const h = require('https')
+          const content = await new Promise((resolve, reject) => {
+            const req = h.get(jinaUrl, { 
+              headers: { 'Accept': 'text/plain', 'User-Agent': 'Spectrawl/1.0' },
+              timeout: 10000
+            }, res => {
+              if (res.statusCode !== 200) return resolve(null)
+              let data = ''
+              res.on('data', c => data += c)
+              res.on('end', () => resolve(data))
+            })
+            req.on('error', () => resolve(null))
+            req.setTimeout(10000, () => { req.destroy(); resolve(null) })
+          })
+
+          if (content && content.length > 200 && !content.includes('blocked by network')) {
+            return {
+              content,
+              url: originalUrl,
+              title: 'Reddit (via Jina Reader)',
+              statusCode: 200,
+              cached: false,
+              engine: 'jina-reader',
+              blocked: false
+            }
+          }
+        } catch (e) { /* try next */ }
+
+        // All direct methods fail from datacenter IPs
+        // Return explicit block with guidance
+        return {
+          content: '',
+          url: originalUrl,
+          title: 'Reddit',
+          statusCode: 403,
+          cached: false,
+          engine: 'blocked',
+          blocked: true,
+          blockType: 'reddit',
+          blockDetail: 'Reddit blocks all datacenter IPs. Use /search with a Reddit-related query to get cached Reddit content via Google, or configure a residential proxy.'
+        }
+      }
+    }
+
+    // Amazon: try Jina Reader  
+    if (url.includes('amazon.com') || url.includes('amazon.co')) {
+      return async (originalUrl, opts) => {
+        try {
+          const jinaUrl = `https://r.jina.ai/${originalUrl}`
+          const h = require('https')
+          const content = await new Promise((resolve, reject) => {
+            const req = h.get(jinaUrl, {
+              headers: { 'Accept': 'text/plain', 'User-Agent': 'Spectrawl/1.0' },
+              timeout: 10000
+            }, res => {
+              if (res.statusCode !== 200) return resolve(null)
+              let data = ''
+              res.on('data', c => data += c)
+              res.on('end', () => resolve(data))
+            })
+            req.on('error', () => resolve(null))
+            req.setTimeout(10000, () => { req.destroy(); resolve(null) })
+          })
+
+          if (content && content.length > 100) {
+            return {
+              content,
+              url: originalUrl,
+              title: 'Amazon (via Jina Reader)',
+              statusCode: 200,
+              cached: false,
+              engine: 'jina-reader',
+              blocked: false
+            }
+          }
+        } catch (e) { /* fall through */ }
+        return null
+      }
+    }
+
+    return null
   }
 
   /**
@@ -402,12 +531,53 @@ function detectBlockPage(content, title, html, url) {
     return { type: 'recaptcha', detail: 'reCAPTCHA challenge page' }
   }
 
+  // Reddit network block
+  if (text.includes('been blocked by network security') ||
+      text.includes('log in to your reddit account') && text.includes('blocked') ||
+      text.includes('whoa there, pardner') ||
+      text.includes('your request has been blocked') && url?.includes('reddit')) {
+    return { type: 'reddit', detail: 'Reddit network-level IP block (datacenter IP detected)' }
+  }
+
+  // Amazon bot detection / CAPTCHA wall
+  if ((text.includes('continue shopping') && text.length < 300) ||
+      text.includes('sorry, we just need to make sure you') ||
+      text.includes('enter the characters you see below') ||
+      (text.includes('robot') && text.includes('sorry') && url?.includes('amazon')) ||
+      (titleLower.includes('robot check') && url?.includes('amazon'))) {
+    return { type: 'amazon', detail: 'Amazon CAPTCHA/bot detection wall' }
+  }
+
+  // LinkedIn auth wall / cookie consent wall
+  if ((text.includes('sign in') && text.includes('linkedin') && text.length < 1000) ||
+      (text.includes('join now') && text.includes('linkedin') && text.length < 1000) ||
+      (text.includes('essential and non-essential cookies') && url?.includes('linkedin'))) {
+    return { type: 'linkedin', detail: 'LinkedIn authentication or cookie consent wall' }
+  }
+
+  // Google / YouTube consent
+  if (text.includes('before you continue to google') ||
+      text.includes('before you continue to youtube') ||
+      (titleLower.includes('consent') && (url?.includes('google') || url?.includes('youtube')))) {
+    return { type: 'google-consent', detail: 'Google/YouTube consent page' }
+  }
+
   // Generic bot detection signals
   if (text.length < 200 && (
       text.includes('access denied') || text.includes('403 forbidden') ||
       text.includes('bot detected') || text.includes('automated access') ||
       text.includes('please verify you are human') || text.includes('are you a robot'))) {
     return { type: 'generic', detail: 'Generic bot detection or access denied page' }
+  }
+
+  // Content quality heuristic — suspiciously short content from sites that should have more
+  if (text.length < 100 && text.length > 0 && url) {
+    const knownLargeSites = ['reddit.com', 'amazon.com', 'linkedin.com', 'facebook.com', 
+                             'twitter.com', 'x.com', 'instagram.com', 'g2.com', 'yelp.com',
+                             'glassdoor.com', 'indeed.com', 'zillow.com', 'ebay.com']
+    if (knownLargeSites.some(s => url.includes(s))) {
+      return { type: 'suspected-block', detail: `Suspiciously short content (${text.length} chars) from ${url} — likely blocked or gated` }
+    }
   }
 
   return null

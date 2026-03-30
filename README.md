@@ -16,6 +16,10 @@ npm install spectrawl
 
 Spectrawl searches via Gemini Grounded Search (Google-quality results), scrapes the top pages for full content, and returns everything to your agent. Your agent's LLM reads the actual sources and forms its own answer — no pre-chewed summaries.
 
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/fayandxan-spectrawl).
+
 ## Quick Start
 
 ```bash

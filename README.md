@@ -96,6 +96,7 @@ Gemini Grounded Search gives you Google-quality results through the Gemini API. 
 | DuckDuckGo | Unlimited | None | Available |
 | Bing | Unlimited | None | Available |
 | Serper | 2,500 trial | `SERPER_API_KEY` | Available |
+| Exa | 1,000/month | `EXA_API_KEY` | Available |
 | Google CSE | 100/day | `GOOGLE_CSE_KEY` | Available |
 | Jina Reader | Unlimited | None | Available |
 | SearXNG | Unlimited | Self-hosted | Available |
@@ -846,6 +847,7 @@ GEMINI_API_KEY      Free — primary search + summarization (aistudio.google.com
 BRAVE_API_KEY       Brave Search (2,000 free/month)
 TAVILY_API_KEY      Tavily Search (1,000 free/month)
 SERPER_API_KEY      Serper.dev (2,500 trial queries)
+EXA_API_KEY         Exa Search (1,000 free/month, neural + content retrieval)
 GITHUB_TOKEN        For GitHub adapter
 DEVTO_API_KEY       For Dev.to adapter
 HF_TOKEN            For HuggingFace adapter

@@ -6,6 +6,20 @@ declare module 'spectrawl' {
       geminiKey?: string
       'gemini-grounded'?: { apiKey?: string; model?: string }
       tavily?: { apiKey?: string; searchDepth?: string; maxResults?: number }
+      exa?: {
+        apiKey?: string
+        maxResults?: number
+        type?: 'neural' | 'fast' | 'auto' | 'deep-lite' | 'deep' | 'deep-reasoning' | 'instant'
+        category?: 'company' | 'research paper' | 'news' | 'personal site' | 'financial report' | 'people'
+        includeDomains?: string[]
+        excludeDomains?: string[]
+        startPublishedDate?: string
+        endPublishedDate?: string
+        startCrawlDate?: string
+        endCrawlDate?: string
+        userLocation?: string
+        contents?: false | Record<string, unknown>
+      }
       llm?: { provider: string; model?: string; apiKey?: string }
       sourceRanker?: {
         weights?: Record<string, number>

@@ -7,6 +7,7 @@ const { jinaSearch } = require('./engines/jina')
 const { bingSearch } = require('./engines/bing')
 const { geminiGroundedSearch } = require('./engines/gemini-grounded')
 const { tavilySearch } = require('./engines/tavily')
+const { exaSearch } = require('./engines/exa')
 const { scrapeUrls } = require('./scraper')
 const { Summarizer } = require('./summarizer')
 const { Reranker } = require('./reranker')
@@ -23,7 +24,8 @@ const ENGINES = {
   'gemini-grounded': geminiGroundedSearch,
   gemini: geminiGroundedSearch,
   bing: bingSearch,
-  tavily: tavilySearch
+  tavily: tavilySearch,
+  exa: exaSearch
 }
 
 class SearchEngine {

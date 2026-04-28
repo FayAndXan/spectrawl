@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/fayandxan-spectrawl-badge.png)](https://mseep.ai/app/fayandxan-spectrawl)
+
 # Spectrawl
 
 The unified web layer for AI agents. Search, browse, crawl, extract, and act on platforms — one package, self-hosted.
